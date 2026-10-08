@@ -1,0 +1,67 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/shared-types",
+    "crates/segment-manager",
+    "crates/persistence",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT OR Apache-2.0"
+authors = ["Velox Download Manager contributors"]
+repository = "https://github.com/iraqi-man1/idm"
+
+[workspace.dependencies]
+# internal crates
+velox-types = { path = "crates/shared-types" }
+velox-segments = { path = "crates/segment-manager" }
+velox-http = { path = "crates/http-engine" }
+velox-ftp = { path = "crates/ftp-engine" }
+velox-persistence = { path = "crates/persistence" }
+velox-core = { path = "crates/download-core" }
+velox-scheduler = { path = "crates/scheduler" }
+velox-media = { path = "crates/media-engine" }
+velox-nm = { path = "crates/native-messaging" }
+velox-test-server = { path = "tests/test-server" }
+
+# async / runtime
+tokio = { version = "1.47", features = ["rt-multi-thread", "macros", "sync", "time", "fs", "io-util", "net", "process", "signal"] }
+tokio-util = { version = "0.7", features = ["rt", "io"] }
+futures = "0.3"
+bytes = "1"
+
+# networking
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "http2", "charset", "system-proxy", "stream", "socks", "json"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+url = { version = "2.5", features = ["serde"] }
+percent-encoding = "2.3"
+httpdate = "1"
+mime_guess = "2"
+
+# data
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.40", default-features = false, features = ["bundled", "cache"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+ts-rs = { version = "12", features = ["serde-json-impl", "uuid-impl", "no-serde-warnings"] }
+
+# errors / logging
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# misc
+parking_lot = "0.12"
+sha2 = "0.10"
+sha1 = "0.10"
+md-5 = "0.10"
+hex = "0.4"
+rand = "0.8"
+regex = "1"
+tempfile = "3"
+dirs = "6"
