@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { errorMessage } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
+import { BrowserIntegration } from "@/pages/settings/BrowserIntegration";
 import { useSettings } from "@/stores/settings";
 
 function LazyTextarea({ value, onCommit, rows = 3 }: { value: string; onCommit: (v: string) => void; rows?: number }) {
@@ -35,6 +36,7 @@ export function BrowserSection({ s }: { s: AppSettings }) {
     );
   return (
     <div className="space-y-4">
+      <BrowserIntegration />
       <Section>
         <Field label={t("settings.browser.capture")}>
           <Switch checked={b.capture_downloads} onCheckedChange={(v) => set("capture_downloads", v)} />

@@ -57,3 +57,57 @@ pub struct ChecksumResult {
 pub struct ClipboardUrl {
     pub url: String,
 }
+
+/// One browser's integration state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct BrowserInfo {
+    pub id: String,
+    pub name: String,
+    /// "chromium" or "firefox".
+    pub family: String,
+    pub installed: bool,
+    /// The native messaging host is registered for this browser.
+    pub registered: bool,
+    pub manifest_path: Option<String>,
+    pub error: Option<String>,
+    /// Extension store page, once the extension is published there.
+    pub store_url: Option<String>,
+}
+
+/// The most recent extension that connected.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ExtensionSeen {
+    pub browser: String,
+    pub version: String,
+    pub origin: String,
+    #[ts(type = "number")]
+    pub last_seen: i64,
+    pub compatible: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct BrowserIntegrationStatus {
+    pub browsers: Vec<BrowserInfo>,
+    /// Path of the native messaging host binary, if found.
+    pub host_path: Option<String>,
+    /// Extensions currently connected.
+    pub connected: u32,
+    pub last_extension: Option<ExtensionSeen>,
+    /// Folders with the unpacked extensions shipped with the app.
+    pub chromium_extension_dir: Option<String>,
+    pub firefox_extension_dir: Option<String>,
+    pub chromium_extension_id: String,
+    pub firefox_extension_id: String,
+}
+
+/// A download handed over by the browser, waiting for the user's decision.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PendingCapture {
+    pub id: String,
+    pub request: crate::download::AddDownloadRequest,
+    pub duplicate_of: Option<crate::download::DownloadId>,
+}

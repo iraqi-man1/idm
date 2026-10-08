@@ -239,11 +239,44 @@ async fn redirect(Query(q): Query<RedirectQuery>) -> Response<Body> {
         .unwrap()
 }
 
-async fn page() -> impl IntoResponse {
-    (
-        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
-        "<!doctype html><html><body><a href=\"/file/a.bin?size=1000\">a</a></body></html>",
-    )
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct PageQuery {
+    /// Link target rendered as `<a id="link">`.
+    href: Option<String>,
+    /// Video source rendered as `<video id="video">`.
+    video: Option<String>,
+    title: Option<String>,
+}
+
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
+/// `GET /page?href=URL&video=URL&title=T`: a minimal HTML page for browser tests.
+async fn page(Query(q): Query<PageQuery>) -> impl IntoResponse {
+    let mut body = String::from("<!doctype html><html><head><meta charset=\"utf-8\"><title>");
+    body.push_str(&html_escape(
+        q.title.as_deref().unwrap_or("Velox test page"),
+    ));
+    body.push_str("</title></head><body style=\"font-family:sans-serif;margin:24px\"><h1>Velox test page</h1>");
+    if let Some(h) = &q.href {
+        body.push_str(&format!(
+            "<p><a id=\"link\" href=\"{}\">Download file</a></p>",
+            html_escape(h)
+        ));
+    }
+    if let Some(v) = &q.video {
+        body.push_str(&format!(
+            "<video id=\"video\" src=\"{}\" width=\"640\" height=\"360\" controls muted playsinline></video>",
+            html_escape(v)
+        ));
+    }
+    body.push_str("</body></html>");
+    ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], body)
 }
 
 struct ActiveGuard(Arc<ResourceStats>);

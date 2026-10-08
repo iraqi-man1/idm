@@ -50,6 +50,13 @@ pub fn update_settings(
     {
         crate::tray::refresh(&app);
     }
+    if previous.browser != saved.browser {
+        crate::integration::push_config(&app, &saved);
+        if previous.browser.extra_allowed_extension_ids != saved.browser.extra_allowed_extension_ids
+        {
+            crate::integration::register(&state);
+        }
+    }
     let _ = app.emit("app://settings-changed", &saved);
     Ok(saved)
 }

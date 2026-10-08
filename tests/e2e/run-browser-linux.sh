@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Browser integration E2E on Linux: Chromium + extension + native host + app.
+# Usage: tests/e2e/run-browser-linux.sh [python] [out-dir] [chrome-binary]
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+PY="${1:-python3}"
+OUT="${2:-$ROOT/target/e2e-browser}"
+CHROME="${3:-/opt/pw-browsers/chromium-1194/chrome-linux/chrome}"
+WORK="$(mktemp -d)"
+export HOME="$WORK/home"
+mkdir -p "$HOME/Downloads" "$OUT"
+export XDG_DATA_HOME="$HOME/.local/share" XDG_CONFIG_HOME="$HOME/.config" XDG_CACHE_HOME="$HOME/.cache"
+export NO_AT_BRIDGE=1 WEBKIT_DISABLE_COMPOSITING_MODE=1
+
+cleanup() {
+  kill ${PIDS:-} 2>/dev/null || true
+  cp -r "$XDG_DATA_HOME/com.veloxdm.app/logs" "$OUT/app-logs" 2>/dev/null || true
+  rm -rf "$WORK" 2>/dev/null || true
+}
+trap cleanup EXIT
+PIDS=""
+Xvfb :98 -screen 0 1600x1000x24 >/dev/null 2>&1 & PIDS="$PIDS $!"
+export DISPLAY=:98
+eval "$(dbus-launch --sh-syntax)"
+PIDS="$PIDS $DBUS_SESSION_BUS_PID"
+"$ROOT/target/debug/velox-test-server" --port 8788 >"$OUT/test-server.log" 2>&1 & PIDS="$PIDS $!"
+tauri-driver --port 4446 --native-port 4447 >"$OUT/tauri-driver.log" 2>&1 & PIDS="$PIDS $!"
+sleep 2
+
+"$PY" "$ROOT/tests/e2e/browser_test.py" \
+  --app "$ROOT/target/debug/velox-desktop" --host "$ROOT/target/debug/velox-nmh" \
+  --extension "$ROOT/extensions/chromium/dist" --chrome "$CHROME" \
+  --server http://127.0.0.1:8788 --downloads "$HOME/Downloads" \
+  --data-dir "$XDG_DATA_HOME/com.veloxdm.app" --profile "$WORK/chrome-profile" \
+  --out "$OUT" --driver http://127.0.0.1:4446

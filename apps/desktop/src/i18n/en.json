@@ -336,7 +336,37 @@
       "excluded": "Never take over downloads from these sites",
       "excludedHint": "One host per line, e.g. example.com",
       "videoDetection": "Detect videos on web pages",
-      "floatingButton": "Show the \"Download This Video\" button over videos"
+      "floatingButton": "Show the \"Download This Video\" button over videos",
+      "connected": "Connected to the Velox extension in {{browser}} (version {{version}})",
+      "lastSeen": "Extension last connected from {{browser}}: {{date}}",
+      "neverSeen": "The browser extension has not connected yet.",
+      "incompatible": "The connected extension version {{version}} is not compatible. Update it.",
+      "host": "Native messaging host",
+      "hostMissing": "The native messaging host is missing. Reinstall Velox.",
+      "registeredFor": "Registered for {{count}} browsers",
+      "repair": "Repair integration",
+      "repaired": "Browser integration repaired",
+      "browsers": "Browsers",
+      "registered": "Host registered",
+      "notRegistered": "Not registered",
+      "notInstalled": "Not installed",
+      "install": "Install browser extension",
+      "installTitle": "Install the Velox extension in {{browser}}",
+      "storeIntro": "Open the extension's page in the store and click Add.",
+      "openStore": "Open store page",
+      "devIntro": "The extension is not yet listed in this browser's store. Install the copy that ships with Velox:",
+      "chromiumStep1": "Open this address in {{browser}}:",
+      "chromiumStep2": "Turn on \"Developer mode\" (top right).",
+      "chromiumStep3": "Click \"Load unpacked\" and choose this folder:",
+      "chromiumStep4": "The extension connects automatically; this page then shows \"Connected\".",
+      "firefoxStep1": "Open this address in Firefox:",
+      "firefoxStep2": "Click \"Load Temporary Add-on…\" and choose manifest.json in this folder:",
+      "firefoxNote": "Firefox removes temporary add-ons when it restarts. A permanent install requires the version signed by addons.mozilla.org.",
+      "openFolder": "Open folder",
+      "copy": "Copy",
+      "noBundle": "The extension files are not included in this build. See docs/browser-extension.md.",
+      "extensionId": "Extension ID",
+      "consent": "Browsers always ask for your consent before an extension is installed; Velox cannot install it silently."
     },
     "media": {
       "quality": "Preferred quality",
@@ -401,5 +431,8 @@
     "byCategory": "Completed by category",
     "files_one": "{{count}} file",
     "files_other": "{{count}} files"
+  },
+  "capture": {
+    "title": "Download file info"
   }
 }

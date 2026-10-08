@@ -6,12 +6,14 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { AddDownloadRequest } from "@/bindings/AddDownloadRequest";
 import type { AppInfo } from "@/bindings/AppInfo";
 import type { AppSettings } from "@/bindings/AppSettings";
+import type { BrowserIntegrationStatus } from "@/bindings/BrowserIntegrationStatus";
 import type { BatchAddResult } from "@/bindings/BatchAddResult";
 import type { ChecksumAlgorithm } from "@/bindings/ChecksumAlgorithm";
 import type { ChecksumResult } from "@/bindings/ChecksumResult";
 import type { DownloadInfo } from "@/bindings/DownloadInfo";
 import type { EngineEvent } from "@/bindings/EngineEvent";
 import type { LogLine } from "@/bindings/LogLine";
+import type { PendingCapture } from "@/bindings/PendingCapture";
 import type { ProgressSnapshot } from "@/bindings/ProgressSnapshot";
 import type { StartMode } from "@/bindings/StartMode";
 import type { StatsSummary } from "@/bindings/StatsSummary";
@@ -71,6 +73,13 @@ export const api = {
   defaultDownloadDir: () => invoke<string>("default_download_dir"),
   openProgressWindow: (id: string) => invoke<void>("open_progress_window", { id }),
   showMain: () => invoke<void>("show_main"),
+  browserStatus: () => invoke<BrowserIntegrationStatus>("browser_integration_status"),
+  repairBrowserIntegration: () => invoke<BrowserIntegrationStatus>("repair_browser_integration"),
+  openExtensionFolder: (family: "chromium" | "firefox") => invoke<void>("open_extension_folder", { family }),
+  getPendingCapture: (id: string) => invoke<PendingCapture>("get_pending_capture", { id }),
+  probeCapture: (id: string) => invoke<UrlInfo>("probe_capture", { id }),
+  resolveCapture: (id: string, request: AddDownloadRequest | null) =>
+    invoke<DownloadInfo | null>("resolve_capture", { id, request }),
   quit: () => invoke<void>("quit_app"),
 };
 
@@ -81,4 +90,7 @@ export const events = {
     listen<AppSettings>("app://settings-changed", (ev) => cb(ev.payload)),
   addUrl: (cb: (url: string) => void): Promise<UnlistenFn> =>
     listen<string>("app://add-url", (ev) => cb(ev.payload)),
+  batchUrls: (cb: (p: { urls: string[]; referer: string | null }) => void): Promise<UnlistenFn> =>
+    listen<{ urls: string[]; referer: string | null }>("app://batch-urls", (ev) => cb(ev.payload)),
+  browserStatusChanged: (cb: () => void): Promise<UnlistenFn> => listen("app://browser-status-changed", () => cb()),
 };

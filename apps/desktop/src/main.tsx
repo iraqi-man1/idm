@@ -5,6 +5,7 @@ import App from "@/App";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import "@/i18n";
 import "@/styles/globals.css";
+import { CaptureWindow } from "@/windows/CaptureWindow";
 import { ProgressWindow } from "@/windows/ProgressWindow";
 
 // Secondary windows share the bundle and are selected by the URL hash.
@@ -15,6 +16,15 @@ function Root() {
     return (
       <>
         <ProgressWindow id={progress[1]} />
+        <Toaster position="bottom-center" richColors />
+      </>
+    );
+  }
+  const capture = hash.match(/^#\/capture\/([0-9a-f]{16})$/i);
+  if (capture) {
+    return (
+      <>
+        <CaptureWindow id={capture[1]} />
         <Toaster position="bottom-center" richColors />
       </>
     );

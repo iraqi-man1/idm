@@ -1,0 +1,28 @@
+:root { color-scheme: light dark; --bg: #fff; --fg: #111827; --muted: #6b7280; --border: #e5e7eb; --accent: #2563eb; --ok: #15803d; --warn: #b45309; --err: #b91c1c; }
+@media (prefers-color-scheme: dark) { :root { --bg: #1b1f26; --fg: #e5e7eb; --muted: #9ca3af; --border: #333a45; --accent: #4b8bf5; --ok: #3fb768; --warn: #e3a33a; --err: #f06464; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Arabic", sans-serif; }
+body.popup { width: 340px; padding: 12px; }
+body.options main { max-width: 640px; margin: 24px auto; padding: 0 16px; }
+header { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+header p, h1 { margin: 0; }
+h1 { font-size: 18px; }
+h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); margin: 14px 0 6px; }
+.status { color: var(--muted); font-size: 12px; }
+.status.ok { color: var(--ok); } .status.warn { color: var(--warn); } .status.err { color: var(--err); }
+.hint { color: var(--muted); font-size: 12px; margin: 8px 0; }
+.rows { border: 1px solid var(--border); border-radius: 10px; }
+.row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; gap: 8px; }
+.row + .row { border-top: 1px solid var(--border); }
+input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); }
+.media, .list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 10px; max-height: 220px; overflow: auto; }
+.media li, .list li { display: flex; align-items: center; gap: 8px; padding: 7px 10px; }
+.media li + li, .list li + li { border-top: 1px solid var(--border); }
+.media .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; }
+.media .kind { font-size: 11px; font-weight: 600; color: var(--accent); text-transform: uppercase; }
+.empty { color: var(--muted); padding: 10px; font-size: 12px; }
+footer { display: flex; gap: 8px; margin-top: 12px; }
+button { font: inherit; border: 1px solid var(--border); background: transparent; color: var(--fg); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.small { padding: 2px 8px; font-size: 12px; }

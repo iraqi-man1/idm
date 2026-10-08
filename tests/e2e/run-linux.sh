@@ -12,7 +12,11 @@ mkdir -p "$HOME/Downloads" "$OUT"
 export XDG_DATA_HOME="$HOME/.local/share" XDG_CONFIG_HOME="$HOME/.config" XDG_CACHE_HOME="$HOME/.cache"
 export NO_AT_BRIDGE=1 WEBKIT_DISABLE_COMPOSITING_MODE=1
 
-cleanup() { kill ${PIDS:-} 2>/dev/null || true; rm -rf "$WORK" 2>/dev/null || true; }
+cleanup() {
+  kill ${PIDS:-} 2>/dev/null || true
+  cp -r "$XDG_DATA_HOME/com.veloxdm.app/logs" "$OUT/app-logs" 2>/dev/null || true
+  rm -rf "$WORK" 2>/dev/null || true
+}
 trap cleanup EXIT
 PIDS=""
 
@@ -22,7 +26,7 @@ eval "$(dbus-launch --sh-syntax)"
 PIDS="$PIDS $DBUS_SESSION_BUS_PID"
 
 "$ROOT/target/debug/velox-test-server" --port 8787 >"$OUT/test-server.log" 2>&1 & PIDS="$PIDS $!"
-tauri-driver --port 4444 >"$OUT/tauri-driver.log" 2>&1 & PIDS="$PIDS $!"
+tauri-driver --port 4444 --native-port 4443 >"$OUT/tauri-driver.log" 2>&1 & PIDS="$PIDS $!"
 sleep 2
 
 "$PY" "$ROOT/tests/e2e/smoke_test.py" --app "$APP" --server http://127.0.0.1:8787 \

@@ -55,6 +55,15 @@ export default function App() {
     return () => void un.then((u) => u());
   }, [openAdd]);
 
+  // "Download all links" from the browser extension.
+  useEffect(() => {
+    const un = events.batchUrls(({ urls }) => {
+      setBatch(true);
+      setTimeout(() => window.dispatchEvent(new CustomEvent("velox:batch-text", { detail: urls.join("\n") })), 50);
+    });
+    return () => void un.then((u) => u());
+  }, [setBatch]);
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);

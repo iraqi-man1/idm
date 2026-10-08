@@ -5728,6 +5728,7 @@ dependencies = [
  "url",
  "uuid",
  "velox-core",
+ "velox-nm",
  "velox-persistence",
  "velox-types",
 ]
@@ -5749,6 +5750,24 @@ dependencies = [
  "url",
  "velox-test-server",
  "velox-types",
+]
+
+[[package]]
+name = "velox-nm"
+version = "0.1.0"
+dependencies = [
+ "dirs 6.0.0",
+ "hex",
+ "parking_lot",
+ "rand 0.8.8",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "velox-types",
+ "windows-sys 0.61.2",
+ "winreg",
 ]
 
 [[package]]

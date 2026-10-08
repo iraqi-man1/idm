@@ -160,7 +160,7 @@ pub enum ExtReply {
     Added {
         accepted: bool,
         /// Present when the download was created immediately.
-        id: Option<DownloadId>,
+        download_id: Option<DownloadId>,
         /// The user is being asked (add dialog shown).
         pending: bool,
         reason: Option<String>,
@@ -377,6 +377,69 @@ mod tests {
         let json = r#"{"id":1,"type":"add_download","download":{"url":"https://e.com/x","headers":[{"name":"X","value":"a\r\nInjected: 1"}]}}"#;
         let req: ExtRequest = serde_json::from_str(json).unwrap();
         assert!(req.validate().is_err());
+    }
+
+    /// Every reply variant must survive a round trip through the flattened
+    /// envelope (no field may collide with the envelope's `id`).
+    #[test]
+    fn every_reply_roundtrips() {
+        use crate::media::MediaProbeResult;
+        let cfg = BrowserConfig {
+            capture_downloads: true,
+            capture_extensions: vec![],
+            min_capture_size: 0,
+            excluded_sites: vec![],
+            video_detection: true,
+            floating_button: true,
+        };
+        let replies = vec![
+            ExtReply::Hello {
+                app_version: "1".into(),
+                protocol_version: 1,
+                compatible: true,
+                message: None,
+                config: cfg.clone(),
+            },
+            ExtReply::Pong,
+            ExtReply::Config { config: cfg },
+            ExtReply::Added {
+                accepted: true,
+                download_id: Some(uuid::Uuid::nil()),
+                pending: false,
+                reason: None,
+            },
+            ExtReply::BatchAdded { count: 3 },
+            ExtReply::Media {
+                result: MediaProbeResult {
+                    kind: MediaSourceKind::Hls,
+                    url: "https://e.com/a.m3u8".into(),
+                    title: None,
+                    duration_secs: None,
+                    thumbnail: None,
+                    formats: vec![],
+                    subtitles: vec![],
+                    extractor: None,
+                    is_live: false,
+                    drm_protected: false,
+                },
+            },
+            ExtReply::Ok,
+            ExtReply::Error {
+                code: "x".into(),
+                message: "y".into(),
+            },
+        ];
+        for reply in replies {
+            let r = ExtResponse { id: 42, reply };
+            let json = serde_json::to_string(&r).unwrap();
+            assert_eq!(
+                json.matches("\"id\":").count(),
+                1,
+                "duplicate id key in {json}"
+            );
+            let back: ExtResponse = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, r);
+        }
     }
 
     #[test]

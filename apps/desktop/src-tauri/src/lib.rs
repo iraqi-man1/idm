@@ -8,6 +8,8 @@
 mod bridge;
 mod commands;
 mod error;
+mod integration;
+mod media_bridge;
 mod security;
 mod state;
 mod tray;
@@ -111,6 +113,7 @@ pub fn quit(app: &AppHandle) {
         let mgr = state.manager.clone();
         tauri::async_runtime::spawn(async move {
             mgr.shutdown().await;
+            integration::shutdown(&app);
             app.exit(0);
         });
     } else {
@@ -199,7 +202,10 @@ pub fn run() {
                 has_updater,
                 log_guard,
             ));
+            app.manage(integration::Bridge::default());
+            app.manage(integration::capture::Captures::default());
             bridge::spawn(handle.clone(), manager.clone());
+            integration::start(&handle);
             tray::create(&handle)?;
             handle_launch_args(&handle, &launch_for_setup, true);
             Ok(())
@@ -262,6 +268,12 @@ pub fn run() {
             commands::system::show_main,
             commands::system::quit_app,
             commands::system::default_download_dir,
+            integration::commands::browser_integration_status,
+            integration::commands::repair_browser_integration,
+            integration::commands::get_pending_capture,
+            integration::commands::probe_capture,
+            integration::commands::resolve_capture,
+            integration::commands::open_extension_folder,
         ])
         .build(context)
         .expect("error while building the application");

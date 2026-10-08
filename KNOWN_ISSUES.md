@@ -17,3 +17,13 @@ of platform restrictions. Keep it honest and current.
   left to the browser.
 * **HTTP/3** is not enabled: reqwest's HTTP/3 support is still behind an
   unstable cfg flag. HTTP/1.1 and HTTP/2 are supported.
+* **Alt+click bypass** relies on the browser turning Alt+click into a download.
+  Chrome/Edge on Windows do this; Chromium on Linux does not, so on Linux use
+  the popup's "Take over downloads" switch to let the browser handle a file.
+* **Incognito/private windows**: downloads there are deliberately not taken
+  over (their cookies must not leave the private session).
+* **Extension store IDs**: the extension is not yet published. Until it is,
+  Chromium browsers use the unpacked build shipped with the app (stable ID
+  `encnclpojnlecaheiiibdkkgiapnhocl` from the public key in the manifest) and
+  Firefox needs a temporary add-on or an AMO-signed build. Store IDs must be
+  added to `CHROMIUM_STORE_EXTENSION_IDS` (crates/native-messaging) when known.

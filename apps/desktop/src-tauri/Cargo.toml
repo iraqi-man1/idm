@@ -22,6 +22,7 @@ tauri-build = { version = "2.7", features = [] }
 velox-types = { workspace = true }
 velox-core = { workspace = true }
 velox-persistence = { workspace = true }
+velox-nm = { workspace = true }
 tauri = { version = "2.12", features = ["tray-icon", "image-png"] }
 tauri-plugin-notification = "2.5"
 tauri-plugin-dialog = "2.8"

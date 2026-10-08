@@ -10,7 +10,7 @@ message: string | null, config: ExtBrowserConfig, } | { "type": "pong" } | { "ty
 /**
  * Present when the download was created immediately.
  */
-id: string | null, 
+download_id: string | null, 
 /**
  * The user is being asked (add dialog shown).
  */
