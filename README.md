@@ -1,0 +1,59 @@
+# Velox Download Manager
+
+A fast, native desktop download manager with IDM-class segmented
+downloading, browser integration and a media downloader — built with
+Tauri 2, Rust and React.
+
+> Velox is an independent implementation. It is not affiliated with, and does
+> not use code or assets from, Internet Download Manager.
+
+## Highlights
+
+* **Segmented downloads** with up to 32 connections, dynamic splitting and
+  adaptive connection management that respects server limits.
+* **Crash-safe resume**: progress is checkpointed only after data is
+  fsynced; downloads survive app restarts, crashes and power loss.
+* **Safe resume**: `If-Range` validation detects changed remote files; expired
+  links can be refreshed without losing progress.
+* **Browser integration** for Chrome, Edge, Brave, Opera and Firefox via
+  Native Messaging, including a floating **Download This Video** button.
+* **Media downloads** (HLS, DASH, extractor-supported sites) using bundled
+  FFmpeg and yt-dlp — no separate installs. DRM-protected media is not
+  supported.
+* Queues, scheduler, speed limits, statistics, English and Arabic (RTL) UI,
+  light/dark themes.
+
+See [FEATURES.md](FEATURES.md) for the exact, tested status of every feature
+and [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for limitations.
+
+## For users
+
+Download the Windows installer from the Releases page and run it. Everything
+the app needs (including FFmpeg and yt-dlp) is inside the installer; no
+Python, Node.js or other tools are required. Then open **Settings → Browser**
+to add the browser extension.
+
+## For developers
+
+Requirements: Rust (stable, ≥ 1.85), Node.js 22, pnpm 10, and the
+[Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS.
+
+```bash
+pnpm install                     # JS dependencies (desktop UI + extensions)
+cargo test --workspace           # engine, persistence, protocol tests
+pnpm --filter desktop tauri dev  # run the desktop app
+pnpm --filter extensions build   # build browser extensions into extensions/*/dist
+cargo run -p velox-test-server -- --port 8787   # local test server
+```
+
+Documentation:
+
+* [ARCHITECTURE.md](ARCHITECTURE.md) — design and module boundaries
+* [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) — phases
+* [DEVELOPMENT_PROGRESS.md](DEVELOPMENT_PROGRESS.md) — current status
+* [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) — release gates
+
+## License
+
+MIT OR Apache-2.0 for Velox's own code. Bundled third-party tools keep their
+own licenses; see `THIRD_PARTY_NOTICES.md`.
