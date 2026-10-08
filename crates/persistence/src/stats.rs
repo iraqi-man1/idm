@@ -78,7 +78,11 @@ impl Database {
                     .find(|(day, _, _)| *day == d)
                     .map(|(_, b, f)| (from_i64(*b), *f as u32))
                     .unwrap_or((0, 0));
-                daily.push(DailyStat { day: d, bytes, files });
+                daily.push(DailyStat {
+                    day: d,
+                    bytes,
+                    files,
+                });
             }
 
             // Monthly series for the last 12 months, zero-filled.
@@ -106,7 +110,11 @@ impl Database {
                     .find(|(mm, _, _)| *mm == month)
                     .map(|(_, b, f)| (from_i64(*b), *f as u32))
                     .unwrap_or((0, 0));
-                monthly.push(MonthlyStat { month, bytes, files });
+                monthly.push(MonthlyStat {
+                    month,
+                    bytes,
+                    files,
+                });
             }
 
             let mut stmt = c.prepare_cached(

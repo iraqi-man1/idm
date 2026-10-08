@@ -82,7 +82,9 @@ impl Database {
              PRAGMA temp_store=MEMORY;",
         )?;
         migrations::run(&mut conn)?;
-        Ok(Self { conn: Arc::new(Mutex::new(conn)) })
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+        })
     }
 
     /// Run a closure with exclusive access to the connection.
@@ -122,11 +124,17 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("db").join("velox.sqlite");
         let db = Database::open(&path).unwrap();
-        assert_eq!(db.schema_version().unwrap(), migrations::MIGRATIONS.len() as u32);
+        assert_eq!(
+            db.schema_version().unwrap(),
+            migrations::MIGRATIONS.len() as u32
+        );
         assert!(db.quick_check().unwrap());
         drop(db);
         let db = Database::open(&path).unwrap();
-        assert_eq!(db.schema_version().unwrap(), migrations::MIGRATIONS.len() as u32);
+        assert_eq!(
+            db.schema_version().unwrap(),
+            migrations::MIGRATIONS.len() as u32
+        );
     }
 
     #[test]
@@ -137,6 +145,9 @@ mod tests {
             let c = Connection::open(&path).unwrap();
             c.pragma_update(None, "user_version", 999).unwrap();
         }
-        assert!(matches!(Database::open(&path), Err(DbError::SchemaTooNew { .. })));
+        assert!(matches!(
+            Database::open(&path),
+            Err(DbError::SchemaTooNew { .. })
+        ));
     }
 }

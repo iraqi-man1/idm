@@ -43,7 +43,10 @@ impl std::fmt::Debug for DownloadSecrets {
         f.debug_struct("DownloadSecrets")
             .field("cookies", &self.cookies.as_ref().map(|_| "<redacted>"))
             .field("credentials", &self.credentials)
-            .field("headers", &self.headers.iter().map(|h| &h.name).collect::<Vec<_>>())
+            .field(
+                "headers",
+                &self.headers.iter().map(|h| &h.name).collect::<Vec<_>>(),
+            )
             .finish()
     }
 }
@@ -70,7 +73,9 @@ impl std::fmt::Debug for SecretBox {
 
 impl SecretBox {
     pub fn new(key: &[u8; 32]) -> Self {
-        Self { cipher: ChaCha20Poly1305::new(Key::from_slice(key)) }
+        Self {
+            cipher: ChaCha20Poly1305::new(Key::from_slice(key)),
+        }
     }
 
     /// Fresh random 256-bit key.
@@ -87,7 +92,13 @@ impl SecretBox {
         rand::rngs::OsRng.fill_bytes(&mut nonce);
         let ct = self
             .cipher
-            .encrypt(Nonce::from_slice(&nonce), Payload { msg: plaintext, aad })
+            .encrypt(
+                Nonce::from_slice(&nonce),
+                Payload {
+                    msg: plaintext,
+                    aad,
+                },
+            )
             .map_err(|_| DbError::Secret("encryption failed".into()))?;
         Ok((nonce, ct))
     }
@@ -97,14 +108,25 @@ impl SecretBox {
             return Err(DbError::Secret("bad nonce".into()));
         }
         self.cipher
-            .decrypt(Nonce::from_slice(nonce), Payload { msg: ciphertext, aad })
+            .decrypt(
+                Nonce::from_slice(nonce),
+                Payload {
+                    msg: ciphertext,
+                    aad,
+                },
+            )
             .map_err(|_| DbError::Secret("decryption failed (wrong key or tampered data)".into()))
     }
 }
 
 impl Database {
     /// Encrypt and store secrets under `secret_id`.
-    pub fn put_secrets(&self, sb: &SecretBox, secret_id: &str, secrets: &DownloadSecrets) -> DbResult<()> {
+    pub fn put_secrets(
+        &self,
+        sb: &SecretBox,
+        secret_id: &str,
+        secrets: &DownloadSecrets,
+    ) -> DbResult<()> {
         let plain = serde_json::to_vec(secrets)?;
         let (nonce, ct) = sb.seal(secret_id.as_bytes(), &plain)?;
         self.with(|c| {
@@ -117,7 +139,11 @@ impl Database {
         })
     }
 
-    pub fn get_secrets(&self, sb: &SecretBox, secret_id: &str) -> DbResult<Option<DownloadSecrets>> {
+    pub fn get_secrets(
+        &self,
+        sb: &SecretBox,
+        secret_id: &str,
+    ) -> DbResult<Option<DownloadSecrets>> {
         let row: Option<(Vec<u8>, Vec<u8>)> = self.with(|c| {
             Ok(c.query_row(
                 "SELECT nonce, ciphertext FROM secrets WHERE id = ?1",
@@ -145,7 +171,10 @@ impl Database {
     /// Store an application-level secret (e.g. the proxy password).
     pub fn put_app_secret(&self, sb: &SecretBox, name: &str, value: &str) -> DbResult<()> {
         let s = DownloadSecrets {
-            credentials: Some(Credentials { username: name.into(), password: value.into() }),
+            credentials: Some(Credentials {
+                username: name.into(),
+                password: value.into(),
+            }),
             ..Default::default()
         };
         self.put_secrets(sb, &format!("app:{name}"), &s)
@@ -169,15 +198,27 @@ mod tests {
         let sb = SecretBox::new(&SecretBox::generate_key());
         let secrets = DownloadSecrets {
             cookies: Some("session=abc".into()),
-            credentials: Some(Credentials { username: "u".into(), password: "p".into() }),
-            headers: vec![HeaderPair { name: "Authorization".into(), value: "Bearer x".into() }],
+            credentials: Some(Credentials {
+                username: "u".into(),
+                password: "p".into(),
+            }),
+            headers: vec![HeaderPair {
+                name: "Authorization".into(),
+                value: "Bearer x".into(),
+            }],
         };
         db.put_secrets(&sb, "s1", &secrets).unwrap();
         assert_eq!(db.get_secrets(&sb, "s1").unwrap().unwrap(), secrets);
 
         // Ciphertext does not contain plaintext.
         let raw: Vec<u8> = db
-            .with(|c| Ok(c.query_row("SELECT ciphertext FROM secrets WHERE id='s1'", [], |r| r.get(0))?))
+            .with(|c| {
+                Ok(
+                    c.query_row("SELECT ciphertext FROM secrets WHERE id='s1'", [], |r| {
+                        r.get(0)
+                    })?,
+                )
+            })
             .unwrap();
         assert!(!raw.windows(11).any(|w| w == b"session=abc"));
 
@@ -199,9 +240,18 @@ mod tests {
         let db = Database::open_in_memory().unwrap();
         let sb = SecretBox::new(&SecretBox::generate_key());
         db.put_app_secret(&sb, "proxy", "pw").unwrap();
-        assert_eq!(db.get_app_secret(&sb, "proxy").unwrap().as_deref(), Some("pw"));
-        assert!(format!("{:?}", DownloadSecrets { cookies: Some("x".into()), ..Default::default() })
-            .contains("redacted"));
+        assert_eq!(
+            db.get_app_secret(&sb, "proxy").unwrap().as_deref(),
+            Some("pw")
+        );
+        assert!(format!(
+            "{:?}",
+            DownloadSecrets {
+                cookies: Some("x".into()),
+                ..Default::default()
+            }
+        )
+        .contains("redacted"));
         assert!(is_sensitive_header("Authorization"));
     }
 }

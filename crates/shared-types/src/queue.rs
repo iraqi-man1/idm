@@ -22,7 +22,7 @@ pub enum PostAction {
 }
 
 /// Time window during which a queue may start downloads.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
 #[serde(default)]
 #[ts(export)]
 pub struct Schedule {
@@ -34,12 +34,6 @@ pub struct Schedule {
     /// Days of week the schedule is active (0 = Sunday ... 6 = Saturday).
     /// Empty = every day.
     pub days: Vec<u8>,
-}
-
-impl Default for Schedule {
-    fn default() -> Self {
-        Self { enabled: false, start_time: None, stop_time: None, days: Vec::new() }
-    }
 }
 
 /// A download queue.
@@ -60,7 +54,7 @@ pub struct QueueInfo {
     pub built_in: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
 #[serde(default)]
 #[ts(export)]
 pub struct QueueUpdate {
@@ -69,10 +63,4 @@ pub struct QueueUpdate {
     pub schedule: Option<Schedule>,
     pub post_action: Option<PostAction>,
     pub retry_failed: Option<bool>,
-}
-
-impl Default for QueueUpdate {
-    fn default() -> Self {
-        Self { name: None, max_concurrent: None, schedule: None, post_action: None, retry_failed: None }
-    }
 }

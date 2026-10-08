@@ -1,0 +1,22 @@
+[package]
+name = "velox-test-server"
+description = "Local HTTP server that simulates hostile and unusual download servers for tests"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+axum = { version = "0.8", default-features = false, features = ["tokio", "http1", "http2", "query"] }
+tokio = { workspace = true }
+futures = { workspace = true }
+bytes = { workspace = true }
+serde = { workspace = true }
+parking_lot = { workspace = true }
+httpdate = { workspace = true }
+base64 = "0.22"
+
+[[bin]]
+name = "velox-test-server"
+path = "src/main.rs"

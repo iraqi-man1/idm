@@ -23,8 +23,12 @@ impl Database {
 
     pub fn get_setting<T: DeserializeOwned>(&self, key: &str) -> DbResult<Option<T>> {
         let raw: Option<String> = self.with(|c| {
-            Ok(c.query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| r.get(0))
-                .optional()?)
+            Ok(
+                c.query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| {
+                    r.get(0)
+                })
+                .optional()?,
+            )
         })?;
         match raw {
             None => Ok(None),
@@ -40,7 +44,10 @@ impl Database {
 
     /// Load application settings (defaults when missing), normalized.
     pub fn load_settings(&self) -> DbResult<AppSettings> {
-        Ok(self.get_setting::<AppSettings>(APP_SETTINGS_KEY)?.unwrap_or_default().normalized())
+        Ok(self
+            .get_setting::<AppSettings>(APP_SETTINGS_KEY)?
+            .unwrap_or_default()
+            .normalized())
     }
 
     pub fn save_settings(&self, s: &AppSettings) -> DbResult<()> {
@@ -55,7 +62,10 @@ mod tests {
     #[test]
     fn settings_roundtrip() {
         let db = Database::open_in_memory().unwrap();
-        assert_eq!(db.load_settings().unwrap(), AppSettings::default().normalized());
+        assert_eq!(
+            db.load_settings().unwrap(),
+            AppSettings::default().normalized()
+        );
         let mut s = AppSettings::default();
         s.downloads.max_concurrent = 7;
         s.appearance.language = "ar".into();
@@ -64,6 +74,9 @@ mod tests {
         assert_eq!(loaded.downloads.max_concurrent, 7);
         assert_eq!(loaded.appearance.language, "ar");
         db.put_setting("x", &vec![1, 2, 3]).unwrap();
-        assert_eq!(db.get_setting::<Vec<i32>>("x").unwrap(), Some(vec![1, 2, 3]));
+        assert_eq!(
+            db.get_setting::<Vec<i32>>("x").unwrap(),
+            Some(vec![1, 2, 3])
+        );
     }
 }

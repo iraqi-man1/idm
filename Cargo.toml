@@ -4,6 +4,9 @@ members = [
     "crates/shared-types",
     "crates/segment-manager",
     "crates/persistence",
+    "crates/http-engine",
+    "tests/test-server",
+    "crates/download-core",
 ]
 
 [workspace.package]

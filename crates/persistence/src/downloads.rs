@@ -58,7 +58,11 @@ pub struct DownloadRecord {
 
 impl DownloadRecord {
     /// A new record with defaults; callers fill in the rest.
-    pub fn new(url: impl Into<String>, file_name: impl Into<String>, save_dir: impl Into<String>) -> Self {
+    pub fn new(
+        url: impl Into<String>,
+        file_name: impl Into<String>,
+        save_dir: impl Into<String>,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             url: url.into(),
@@ -152,15 +156,21 @@ impl DownloadRecord {
             retry_count: r.get::<_, i64>("retry_count")?.max(0) as u32,
             speed_limit: from_i64(r.get("speed_limit")?),
             checksum: match (checksum_algo, checksum_value) {
-                (Some(a), Some(v)) => ChecksumAlgorithm::parse(&a)
-                    .map(|algorithm| ChecksumSpec { algorithm, expected: v }),
+                (Some(a), Some(v)) => ChecksumAlgorithm::parse(&a).map(|algorithm| ChecksumSpec {
+                    algorithm,
+                    expected: v,
+                }),
                 _ => None,
             },
             checksum_ok: r.get("checksum_ok")?,
             media: media_json.and_then(|j| serde_json::from_str(&j).ok()),
             elapsed_ms: from_i64(r.get("elapsed_ms")?),
             secret_id: r.get("secret_id")?,
-            conflict: if conflict == "overwrite" { ConflictPolicy::Overwrite } else { ConflictPolicy::Rename },
+            conflict: if conflict == "overwrite" {
+                ConflictPolicy::Overwrite
+            } else {
+                ConflictPolicy::Rename
+            },
             name_locked: r.get("name_locked")?,
         })
     }
@@ -253,12 +263,19 @@ fn upsert(conn: &Connection, d: &DownloadRecord) -> DbResult<()> {
 }
 
 fn write_segments(conn: &Connection, id: &str, segments: &[PersistedSegment]) -> DbResult<()> {
-    conn.prepare_cached("DELETE FROM segments WHERE download_id = ?1")?.execute([id])?;
+    conn.prepare_cached("DELETE FROM segments WHERE download_id = ?1")?
+        .execute([id])?;
     let mut stmt = conn.prepare_cached(
         "INSERT INTO segments (download_id, idx, start, end_, written) VALUES (?1, ?2, ?3, ?4, ?5)",
     )?;
     for (i, s) in segments.iter().enumerate() {
-        stmt.execute(params![id, i as i64, to_i64(s.start), s.end.map(to_i64), to_i64(s.written)])?;
+        stmt.execute(params![
+            id,
+            i as i64,
+            to_i64(s.start),
+            s.end.map(to_i64),
+            to_i64(s.written)
+        ])?;
     }
     Ok(())
 }
@@ -312,9 +329,11 @@ impl Database {
         self.with(|c| {
             let tx = c.transaction()?;
             let secret: Option<String> = tx
-                .query_row("SELECT secret_id FROM downloads WHERE id = ?1", [id.to_string()], |r| {
-                    r.get(0)
-                })
+                .query_row(
+                    "SELECT secret_id FROM downloads WHERE id = ?1",
+                    [id.to_string()],
+                    |r| r.get(0),
+                )
                 .optional()?
                 .flatten();
             if let Some(s) = secret {
@@ -329,7 +348,11 @@ impl Database {
     /// Next queue position (appends to the end of a queue).
     pub fn next_position(&self) -> DbResult<i64> {
         self.with(|c| {
-            Ok(c.query_row("SELECT COALESCE(MAX(position), 0) + 1 FROM downloads", [], |r| r.get(0))?)
+            Ok(c.query_row(
+                "SELECT COALESCE(MAX(position), 0) + 1 FROM downloads",
+                [],
+                |r| r.get(0),
+            )?)
         })
     }
 
@@ -353,7 +376,11 @@ impl Database {
     /// `downloaded` / `elapsed_ms`) and its segment table.
     ///
     /// Callers must fsync the data file *before* calling this.
-    pub fn checkpoint(&self, record: &DownloadRecord, segments: &[PersistedSegment]) -> DbResult<()> {
+    pub fn checkpoint(
+        &self,
+        record: &DownloadRecord,
+        segments: &[PersistedSegment],
+    ) -> DbResult<()> {
         self.with(|c| {
             let tx = c.transaction()?;
             upsert(&tx, record)?;
@@ -365,7 +392,10 @@ impl Database {
 
     pub fn clear_segments(&self, id: DownloadId) -> DbResult<()> {
         self.with(|c| {
-            c.execute("DELETE FROM segments WHERE download_id = ?1", [id.to_string()])?;
+            c.execute(
+                "DELETE FROM segments WHERE download_id = ?1",
+                [id.to_string()],
+            )?;
             Ok(())
         })
     }
@@ -394,7 +424,11 @@ impl Database {
                 "SELECT ts, level, message FROM download_log WHERE download_id = ?1 ORDER BY id",
             )?;
             let rows = stmt.query_map([id.to_string()], |r| {
-                Ok(LogEntry { ts: r.get(0)?, level: r.get(1)?, message: r.get(2)? })
+                Ok(LogEntry {
+                    ts: r.get(0)?,
+                    level: r.get(1)?,
+                    message: r.get(2)?,
+                })
             })?;
             Ok(rows.collect::<Result<Vec<_>, _>>()?)
         })
@@ -414,10 +448,19 @@ mod tests {
     fn sample() -> DownloadRecord {
         let mut r = DownloadRecord::new("https://example.com/f.zip", "f.zip", "/tmp");
         r.total_size = Some(5_000_000_000);
-        r.headers = vec![HeaderPair { name: "X-Test".into(), value: "1".into() }];
-        r.checksum = Some(ChecksumSpec { algorithm: ChecksumAlgorithm::Sha256, expected: "ab".into() });
+        r.headers = vec![HeaderPair {
+            name: "X-Test".into(),
+            value: "1".into(),
+        }];
+        r.checksum = Some(ChecksumSpec {
+            algorithm: ChecksumAlgorithm::Sha256,
+            expected: "ab".into(),
+        });
         r.error_kind = Some(ErrorKind::Network);
-        r.media = Some(MediaRequest { url: "https://e.com/m.m3u8".into(), ..Default::default() });
+        r.media = Some(MediaRequest {
+            url: "https://e.com/m.m3u8".into(),
+            ..Default::default()
+        });
         r
     }
 
@@ -432,7 +475,10 @@ mod tests {
         db.save_download(&r).unwrap();
         assert_eq!(db.get_download(r.id).unwrap().unwrap(), r);
         assert_eq!(db.list_downloads().unwrap().len(), 1);
-        assert_eq!(db.find_by_url("https://example.com/f.zip").unwrap(), vec![r.id]);
+        assert_eq!(
+            db.find_by_url("https://example.com/f.zip").unwrap(),
+            vec![r.id]
+        );
     }
 
     #[test]
@@ -441,8 +487,16 @@ mod tests {
         let mut r = sample();
         db.save_download(&r).unwrap();
         let segs = vec![
-            PersistedSegment { start: 0, end: Some(100), written: 50 },
-            PersistedSegment { start: 100, end: Some(5_000_000_000), written: 4_000_000_000 },
+            PersistedSegment {
+                start: 0,
+                end: Some(100),
+                written: 50,
+            },
+            PersistedSegment {
+                start: 100,
+                end: Some(5_000_000_000),
+                written: 4_000_000_000,
+            },
         ];
         r.downloaded = 50 + 4_000_000_000 - 100;
         db.checkpoint(&r, &segs).unwrap();
@@ -464,6 +518,9 @@ mod tests {
         }
         let log = db.read_log(r.id).unwrap();
         assert_eq!(log.len() as i64, MAX_LOG_PER_DOWNLOAD);
-        assert_eq!(log.last().unwrap().message, format!("line {}", MAX_LOG_PER_DOWNLOAD + 24));
+        assert_eq!(
+            log.last().unwrap().message,
+            format!("line {}", MAX_LOG_PER_DOWNLOAD + 24)
+        );
     }
 }

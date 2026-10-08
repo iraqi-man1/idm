@@ -190,7 +190,13 @@ pub struct ExtResponse {
 
 impl ExtResponse {
     pub fn error(id: u64, code: &str, message: impl Into<String>) -> Self {
-        Self { id, reply: ExtReply::Error { code: code.into(), message: message.into() } }
+        Self {
+            id,
+            reply: ExtReply::Error {
+                code: code.into(),
+                message: message.into(),
+            },
+        }
     }
 }
 
@@ -229,7 +235,9 @@ pub fn check_download_url(field: &str, url: &str) -> Result<(), ValidationError>
     let lower = url.trim_start().to_ascii_lowercase();
     let allowed = ["http://", "https://", "ftp://", "ftps://", "sftp://"];
     if !allowed.iter().any(|p| lower.starts_with(p)) {
-        return Err(ValidationError(format!("{field} must be an http(s), ftp(s) or sftp URL")));
+        return Err(ValidationError(format!(
+            "{field} must be an http(s), ftp(s) or sftp URL"
+        )));
     }
     Ok(())
 }
@@ -249,7 +257,10 @@ fn check_headers(headers: &[HeaderPair]) -> Result<(), ValidationError> {
         check_len("header name", &h.name, 256)?;
         check_len("header value", &h.value, MAX_HEADER_LEN)?;
         if h.name.is_empty()
-            || !h.name.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
+            || !h
+                .name
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
         {
             return Err(ValidationError(format!("invalid header name {:?}", h.name)));
         }
@@ -298,7 +309,11 @@ impl MediaContext {
 impl ExtRequest {
     pub fn validate(&self) -> Result<(), ValidationError> {
         match &self.message {
-            ExtMessage::Hello { extension_version, browser, .. } => {
+            ExtMessage::Hello {
+                extension_version,
+                browser,
+                ..
+            } => {
                 check_len("extension_version", extension_version, 64)?;
                 check_len("browser", browser, 64)
             }
@@ -306,13 +321,17 @@ impl ExtRequest {
             ExtMessage::AddDownload { download } => download.validate(),
             ExtMessage::AddBatch { items, page_url } => {
                 if items.is_empty() || items.len() > MAX_BATCH {
-                    return Err(ValidationError(format!("batch must have 1..={MAX_BATCH} items")));
+                    return Err(ValidationError(format!(
+                        "batch must have 1..={MAX_BATCH} items"
+                    )));
                 }
                 check_page_url("page_url", page_url)?;
                 items.iter().try_for_each(BrowserDownload::validate)
             }
             ExtMessage::ProbeMedia { media } => media.validate(),
-            ExtMessage::DownloadMedia { media, selection, .. } => {
+            ExtMessage::DownloadMedia {
+                media, selection, ..
+            } => {
                 media.validate()?;
                 check_len("selection.url", &selection.url, MAX_URL_LEN)?;
                 check_opt("format_id", &selection.format_id, 256)?;
@@ -362,7 +381,13 @@ mod tests {
 
     #[test]
     fn reply_serialization_shape() {
-        let r = ExtResponse { id: 3, reply: ExtReply::Pong };
-        assert_eq!(serde_json::to_string(&r).unwrap(), r#"{"id":3,"type":"pong"}"#);
+        let r = ExtResponse {
+            id: 3,
+            reply: ExtReply::Pong,
+        };
+        assert_eq!(
+            serde_json::to_string(&r).unwrap(),
+            r#"{"id":3,"type":"pong"}"#
+        );
     }
 }

@@ -130,7 +130,13 @@ impl SegmentTable {
         let end = total.unwrap_or(OPEN_END);
         Self {
             total,
-            segments: vec![Segment { start: 0, end, received: 0, written: 0, worker: None }],
+            segments: vec![Segment {
+                start: 0,
+                end,
+                received: 0,
+                written: 0,
+                worker: None,
+            }],
             min_split: min_split.max(SPLIT_ALIGN),
             ranges: splittable,
         }
@@ -243,9 +249,17 @@ impl SegmentTable {
     /// Mark a specific segment as owned by `worker` (used for the probe
     /// connection, which always starts at offset 0).
     pub fn assign(&mut self, index: usize, worker: WorkerId) -> Result<Assignment, SegmentError> {
-        let seg = self.segments.get_mut(index).ok_or(SegmentError::NoSuchSegment(index))?;
+        let seg = self
+            .segments
+            .get_mut(index)
+            .ok_or(SegmentError::NoSuchSegment(index))?;
         seg.worker = Some(worker);
-        Ok(Assignment { index, from: seg.received, end: seg.end, split: false })
+        Ok(Assignment {
+            index,
+            from: seg.received,
+            end: seg.end,
+            split: false,
+        })
     }
 
     /// Find work for a new connection.
@@ -265,7 +279,12 @@ impl SegmentTable {
         if let Some(index) = free {
             let seg = &mut self.segments[index];
             seg.worker = Some(worker);
-            return Some(Assignment { index, from: seg.received, end: seg.end, split: false });
+            return Some(Assignment {
+                index,
+                from: seg.received,
+                end: seg.end,
+                split: false,
+            });
         }
         if !self.is_splittable() {
             return None;
@@ -295,15 +314,28 @@ impl SegmentTable {
             written: mid,
             worker: Some(worker),
         });
-        Some(Assignment { index: self.segments.len() - 1, from: mid, end: old_end, split: true })
+        Some(Assignment {
+            index: self.segments.len() - 1,
+            from: mid,
+            end: old_end,
+            split: true,
+        })
     }
 
     /// Account for `len` bytes received by `worker` for segment `index`.
     ///
     /// Returns how many leading bytes belong to the segment. Bytes past the
     /// (possibly shrunk) end must be discarded by the caller.
-    pub fn claim(&mut self, index: usize, worker: WorkerId, len: u64) -> Result<Claim, SegmentError> {
-        let seg = self.segments.get_mut(index).ok_or(SegmentError::NoSuchSegment(index))?;
+    pub fn claim(
+        &mut self,
+        index: usize,
+        worker: WorkerId,
+        len: u64,
+    ) -> Result<Claim, SegmentError> {
+        let seg = self
+            .segments
+            .get_mut(index)
+            .ok_or(SegmentError::NoSuchSegment(index))?;
         if seg.worker != Some(worker) {
             return Err(SegmentError::NotOwner(index, worker));
         }
@@ -311,15 +343,27 @@ impl SegmentTable {
         let accepted = len.min(seg.end - seg.received);
         seg.received += accepted;
         let finished = !seg.is_open_ended() && seg.received >= seg.end;
-        Ok(Claim { offset, accepted, finished })
+        Ok(Claim {
+            offset,
+            accepted,
+            finished,
+        })
     }
 
     /// Record that `[offset, offset+len)` of segment `index` was written.
     ///
     /// Writes of a segment arrive in order (one connection per segment,
     /// one writer per file), so `written` simply advances.
-    pub fn mark_written(&mut self, index: usize, offset: u64, len: u64) -> Result<(), SegmentError> {
-        let seg = self.segments.get_mut(index).ok_or(SegmentError::NoSuchSegment(index))?;
+    pub fn mark_written(
+        &mut self,
+        index: usize,
+        offset: u64,
+        len: u64,
+    ) -> Result<(), SegmentError> {
+        let seg = self
+            .segments
+            .get_mut(index)
+            .ok_or(SegmentError::NoSuchSegment(index))?;
         let end = offset.saturating_add(len);
         if offset < seg.start || end > seg.received {
             return Err(SegmentError::WriteOutOfRange { index, offset });
@@ -517,7 +561,10 @@ mod tests {
         t.release(0, 1);
         let a = t.acquire(9).unwrap();
         assert_eq!((a.index, a.from, a.split), (0, 3 * MIB, false));
-        assert!(matches!(t.claim(0, 1, 1), Err(SegmentError::NotOwner(0, 1))));
+        assert!(matches!(
+            t.claim(0, 1, 1),
+            Err(SegmentError::NotOwner(0, 1))
+        ));
     }
 
     #[test]
@@ -543,13 +590,29 @@ mod tests {
     #[test]
     fn restore_rejects_bad_layouts() {
         let bad = [
-            PersistedSegment { start: 0, end: Some(10), written: 5 },
-            PersistedSegment { start: 12, end: Some(20), written: 12 },
+            PersistedSegment {
+                start: 0,
+                end: Some(10),
+                written: 5,
+            },
+            PersistedSegment {
+                start: 12,
+                end: Some(20),
+                written: 12,
+            },
         ];
         assert!(SegmentTable::restore(Some(20), &bad, MIB, true).is_err());
-        let overflow = [PersistedSegment { start: 0, end: Some(10), written: 11 }];
+        let overflow = [PersistedSegment {
+            start: 0,
+            end: Some(10),
+            written: 11,
+        }];
         assert!(SegmentTable::restore(Some(10), &overflow, MIB, true).is_err());
-        let wrong_total = [PersistedSegment { start: 0, end: Some(10), written: 0 }];
+        let wrong_total = [PersistedSegment {
+            start: 0,
+            end: Some(10),
+            written: 0,
+        }];
         assert!(SegmentTable::restore(Some(11), &wrong_total, MIB, true).is_err());
     }
 

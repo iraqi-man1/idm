@@ -155,13 +155,33 @@ const ARCHIVE_EXT: &[&str] = &[
     "iso", "img", "arj", "z", "lzh", "ace", "001",
 ];
 const PROGRAM_EXT: &[&str] = &[
-    "exe", "msi", "msix", "msixbundle", "appx", "appxbundle", "dmg", "pkg", "deb", "rpm",
-    "appimage", "apk", "aab", "jar", "bat", "cmd", "sh", "run", "bin", "flatpakref", "snap", "xpi",
+    "exe",
+    "msi",
+    "msix",
+    "msixbundle",
+    "appx",
+    "appxbundle",
+    "dmg",
+    "pkg",
+    "deb",
+    "rpm",
+    "appimage",
+    "apk",
+    "aab",
+    "jar",
+    "bat",
+    "cmd",
+    "sh",
+    "run",
+    "bin",
+    "flatpakref",
+    "snap",
+    "xpi",
     "crx",
 ];
 const IMAGE_EXT: &[&str] = &[
-    "jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "tif", "tiff", "ico", "heic", "heif", "avif",
-    "psd", "raw", "cr2", "nef", "jxl",
+    "jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "tif", "tiff", "ico", "heic", "heif",
+    "avif", "psd", "raw", "cr2", "nef", "jxl",
 ];
 
 impl Category {
@@ -198,7 +218,12 @@ impl Category {
 
     /// Classify from a MIME type such as `video/mp4`.
     pub fn from_mime(mime: &str) -> Category {
-        let mime = mime.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+        let mime = mime
+            .split(';')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_ascii_lowercase();
         if mime.starts_with("video/")
             || mime == "application/vnd.apple.mpegurl"
             || mime == "application/x-mpegurl"
@@ -626,8 +651,14 @@ mod tests {
         assert_eq!(Category::detect("song.mp3", None), Category::Music);
         assert_eq!(Category::detect("setup.exe", None), Category::Program);
         assert_eq!(Category::detect("a.tar.gz", None), Category::Archive);
-        assert_eq!(Category::detect("report", Some("application/pdf")), Category::Document);
-        assert_eq!(Category::detect("stream", Some("video/mp4; codecs=avc1")), Category::Video);
+        assert_eq!(
+            Category::detect("report", Some("application/pdf")),
+            Category::Document
+        );
+        assert_eq!(
+            Category::detect("stream", Some("video/mp4; codecs=avc1")),
+            Category::Video
+        );
         assert_eq!(Category::detect("unknown.xyz", None), Category::Other);
     }
 
@@ -650,7 +681,10 @@ mod tests {
 
     #[test]
     fn credentials_debug_is_redacted() {
-        let c = Credentials { username: "u".into(), password: "hunter2".into() };
+        let c = Credentials {
+            username: "u".into(),
+            password: "hunter2".into(),
+        };
         assert!(!format!("{c:?}").contains("hunter2"));
     }
 }

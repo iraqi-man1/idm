@@ -90,7 +90,10 @@ impl Database {
         }
         self.with(|c| {
             let tx = c.transaction()?;
-            tx.execute("UPDATE downloads SET queue_id = ?1 WHERE queue_id = ?2", params![MAIN_QUEUE_ID, id])?;
+            tx.execute(
+                "UPDATE downloads SET queue_id = ?1 WHERE queue_id = ?2",
+                params![MAIN_QUEUE_ID, id],
+            )?;
             tx.execute("DELETE FROM queues WHERE id = ?1 AND built_in = 0", [id])?;
             tx.commit()?;
             Ok(())

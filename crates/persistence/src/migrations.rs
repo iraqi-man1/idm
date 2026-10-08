@@ -114,7 +114,10 @@ pub(crate) fn run(conn: &mut Connection) -> Result<u32, DbError> {
     let current: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
     let target = MIGRATIONS.len() as u32;
     if current > target {
-        return Err(DbError::SchemaTooNew { found: current, supported: target });
+        return Err(DbError::SchemaTooNew {
+            found: current,
+            supported: target,
+        });
     }
     for (i, sql) in MIGRATIONS.iter().enumerate().skip(current as usize) {
         let version = i as u32 + 1;

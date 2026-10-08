@@ -214,17 +214,20 @@ pub struct BrowserSettings {
 }
 
 pub const DEFAULT_CAPTURE_EXTENSIONS: &[&str] = &[
-    "3gp", "7z", "aac", "ace", "aif", "apk", "arj", "asf", "avi", "bin", "bz2", "dmg", "deb", "exe",
-    "flac", "flv", "gz", "gzip", "img", "iso", "lzh", "m4a", "m4v", "mkv", "mov", "mp3", "mp4",
-    "mpeg", "mpg", "msi", "msix", "ogg", "ogv", "opus", "pdf", "pkg", "rar", "rpm", "tar", "tgz",
-    "wav", "webm", "wma", "wmv", "xz", "zip", "zst", "appimage",
+    "3gp", "7z", "aac", "ace", "aif", "apk", "arj", "asf", "avi", "bin", "bz2", "dmg", "deb",
+    "exe", "flac", "flv", "gz", "gzip", "img", "iso", "lzh", "m4a", "m4v", "mkv", "mov", "mp3",
+    "mp4", "mpeg", "mpg", "msi", "msix", "ogg", "ogv", "opus", "pdf", "pkg", "rar", "rpm", "tar",
+    "tgz", "wav", "webm", "wma", "wmv", "xz", "zip", "zst", "appimage",
 ];
 
 impl Default for BrowserSettings {
     fn default() -> Self {
         Self {
             capture_downloads: true,
-            capture_extensions: DEFAULT_CAPTURE_EXTENSIONS.iter().map(|s| s.to_string()).collect(),
+            capture_extensions: DEFAULT_CAPTURE_EXTENSIONS
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             min_capture_size: 0,
             excluded_sites: Vec::new(),
             video_detection: true,
@@ -302,7 +305,11 @@ pub struct PowerSettings {
 
 impl Default for PowerSettings {
     fn default() -> Self {
-        Self { pause_on_low_battery: false, battery_threshold: 20, pause_on_metered: false }
+        Self {
+            pause_on_low_battery: false,
+            battery_threshold: 20,
+            pause_on_metered: false,
+        }
     }
 }
 
@@ -323,7 +330,13 @@ impl Default for AppearanceSettings {
             theme: ThemeMode::System,
             language: "system".into(),
             visible_columns: [
-                "name", "size", "progress", "speed", "eta", "status", "date_added",
+                "name",
+                "size",
+                "progress",
+                "speed",
+                "eta",
+                "status",
+                "date_added",
             ]
             .iter()
             .map(|s| s.to_string())
