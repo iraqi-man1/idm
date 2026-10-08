@@ -713,3 +713,23 @@ async fn large_file_over_4gib() {
         assert_eq!(buf, exp, "mismatch at offset {off}");
     }
 }
+
+/// Commands must work when called from a thread without a Tokio context
+/// (the desktop shell calls synchronous commands on the UI thread).
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn commands_work_from_non_runtime_threads() {
+    let srv = TestServer::start().await;
+    let env = Env::new();
+    let mgr = env.manager().await;
+    let mut r = req(srv.url("/file/thread.bin?size=2000000&rate=500000"));
+    r.start = StartMode::Paused;
+    let info = mgr.add(r).await.unwrap();
+    let m2 = mgr.clone();
+    let id = info.id;
+    std::thread::spawn(move || m2.start(id))
+        .join()
+        .unwrap()
+        .unwrap();
+    let done = wait_finished(&mgr, id, Duration::from_secs(30)).await;
+    assert_eq!(done.status, DownloadStatus::Completed, "{:?}", done.error);
+}

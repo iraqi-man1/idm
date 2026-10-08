@@ -8,6 +8,7 @@
 //! `number`; JavaScript numbers are exact up to 2^53 bytes (8 PiB), which is
 //! far beyond any realistic download size.
 
+pub mod app;
 pub mod download;
 pub mod events;
 pub mod media;
@@ -16,6 +17,7 @@ pub mod queue;
 pub mod settings;
 pub mod stats;
 
+pub use app::*;
 pub use download::*;
 pub use events::*;
 pub use media::*;

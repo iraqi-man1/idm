@@ -63,6 +63,10 @@ struct Inner {
     reserved: Arc<Mutex<HashSet<PathBuf>>>,
     media_runner: RwLock<Option<Arc<dyn MediaRunner>>>,
     shutdown: CancellationToken,
+    /// Runtime the manager was opened on. Tasks are spawned through this
+    /// handle so commands can be called from any thread (e.g. synchronous
+    /// UI command handlers on the main thread).
+    rt: tokio::runtime::Handle,
 }
 
 /// Handle to the download manager. Cheap to clone.
@@ -252,6 +256,7 @@ impl DownloadManager {
             reserved: Arc::new(Mutex::new(HashSet::new())),
             media_runner: RwLock::new(None),
             shutdown: CancellationToken::new(),
+            rt: tokio::runtime::Handle::current(),
         });
         let mut interrupted = Vec::new();
         let records = inner.db.list_downloads()?;
@@ -283,7 +288,7 @@ impl DownloadManager {
     fn spawn_progress_ticker(&self) {
         let weak = Arc::downgrade(&self.inner);
         let shutdown = self.inner.shutdown.clone();
-        tokio::spawn(async move {
+        self.inner.rt.spawn(async move {
             let mut iv = tokio::time::interval(Duration::from_millis(500));
             loop {
                 tokio::select! {
@@ -759,7 +764,7 @@ impl DownloadManager {
             },
         );
         drop(running);
-        let handle = tokio::spawn(async move {
+        let handle = self.inner.rt.spawn(async move {
             let outcome = match media {
                 Some(m) => m.run(sh2.clone(), env).await,
                 None => run_file_task(sh2.clone(), env).await,

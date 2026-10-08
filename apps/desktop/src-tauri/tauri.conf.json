@@ -1,0 +1,96 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Velox Download Manager",
+  "mainBinaryName": "velox-desktop",
+  "version": "0.1.0",
+  "identifier": "com.veloxdm.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Velox Download Manager",
+        "width": 1180,
+        "height": 740,
+        "minWidth": 860,
+        "minHeight": 520,
+        "center": true,
+        "visible": false,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: asset: http://asset.localhost https:",
+        "connect-src": "ipc: http://ipc.localhost",
+        "font-src": "'self' data:",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "frame-ancestors": "'none'"
+      },
+      "freezePrototype": true
+    },
+    "trayIcon": null
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "deb", "appimage", "dmg", "app"],
+    "publisher": "Velox Download Manager contributors",
+    "copyright": "Velox Download Manager contributors",
+    "category": "Utility",
+    "shortDescription": "Fast segmented download manager",
+    "longDescription": "Velox Download Manager accelerates downloads with multiple connections, resumes interrupted transfers safely, integrates with web browsers and downloads media streams.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../../../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md"
+    },
+    "createUpdaterArtifacts": false,
+    "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "both",
+        "displayLanguageSelector": true,
+        "languages": ["English", "Arabic"],
+        "installerIcon": "icons/icon.ico",
+        "installerHooks": "../../../installer/nsis/hooks.nsh"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "",
+      "endpoints": [
+        "https://github.com/iraqi-man1/idm/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

@@ -7,6 +7,7 @@ members = [
     "crates/http-engine",
     "tests/test-server",
     "crates/download-core",
+    "apps/desktop/src-tauri",
 ]
 
 [workspace.package]
