@@ -210,6 +210,21 @@ fn to_info(r: &DownloadRecord, live: Option<&LiveState>, has_secrets: bool) -> D
 }
 
 /// Classify a URL by scheme / path.
+/// Delete a partial file, or the work directory of a media download.
+fn remove_temp(path: impl AsRef<Path>) {
+    let p = path.as_ref();
+    if p.is_dir() {
+        // Only Velox work directories are ever removed recursively.
+        if p.file_name()
+            .is_some_and(|n| n.to_string_lossy().starts_with(".velox-"))
+        {
+            let _ = std::fs::remove_dir_all(p);
+        }
+    } else {
+        let _ = std::fs::remove_file(p);
+    }
+}
+
 pub fn detect_kind(url: &str) -> EngineResult<DownloadKind> {
     let parsed = velox_http::url::Url::parse(url.trim())
         .map_err(|e| EngineError::InvalidUrl(e.to_string()))?;
@@ -815,7 +830,7 @@ impl DownloadManager {
                 }
                 StopReason::Cancel => {
                     if let Some(t) = r.temp_path.take() {
-                        let _ = std::fs::remove_file(t);
+                        remove_temp(t);
                     }
                     let _ = db.clear_segments(id);
                     r.status = DownloadStatus::Cancelled;
@@ -889,7 +904,7 @@ impl DownloadManager {
             let mut r = rec.lock();
             if r.status != DownloadStatus::Completed {
                 if let Some(t) = r.temp_path.take() {
-                    let _ = std::fs::remove_file(t);
+                    remove_temp(t);
                 }
                 self.inner.db.clear_segments(id)?;
                 r.status = DownloadStatus::Cancelled;
@@ -934,7 +949,7 @@ impl DownloadManager {
             let r = rec.lock().clone();
             let final_path = Path::new(&r.save_dir).join(&r.file_name);
             if let Some(t) = &r.temp_path {
-                let _ = std::fs::remove_file(t);
+                remove_temp(t);
             }
             if delete_file && r.status == DownloadStatus::Completed && final_path.is_file() {
                 std::fs::remove_file(&final_path).map_err(EngineError::from_io)?;

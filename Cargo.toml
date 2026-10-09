@@ -8,6 +8,7 @@ members = [
     "tests/test-server",
     "crates/download-core",
     "crates/native-messaging",
+    "crates/media-engine",
     "apps/desktop/src-tauri",
 ]
 

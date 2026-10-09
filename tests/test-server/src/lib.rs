@@ -30,10 +30,15 @@
 //! `POST /admin/bump/{name}` changes the content and ETag of `name`,
 //! simulating a remote file that changed between sessions.
 //! `GET /redirect?n=K&to=/file/...` redirects K times before reaching `to`.
+//! `GET /static/{path}` serves files below the directory given to
+//! [`TestServer::serve_dir`] (single `Range` requests supported); used for
+//! HLS/DASH tests with real media. [`TestServer::force_status`] makes one
+//! static path answer with a fixed status (e.g. 403 for an expired link).
 
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -93,6 +98,8 @@ pub struct ResourceStats {
 pub struct ServerState {
     stats: Mutex<HashMap<String, Arc<ResourceStats>>>,
     versions: Mutex<HashMap<String, u64>>,
+    static_root: Mutex<Option<PathBuf>>,
+    forced_status: Mutex<HashMap<String, u16>>,
 }
 
 impl ServerState {
@@ -163,6 +170,25 @@ impl TestServer {
     pub fn bump(&self, name: &str) {
         self.state.bump(name)
     }
+
+    /// Serve the files below `dir` at `/static/...`.
+    pub fn serve_dir(&self, dir: impl Into<PathBuf>) {
+        *self.state.static_root.lock() = Some(dir.into());
+    }
+
+    /// Make `/static/{path}` answer `status` (or serve it normally again).
+    pub fn force_status(&self, path: &str, status: Option<u16>) {
+        let mut m = self.state.forced_status.lock();
+        match status {
+            Some(s) => m.insert(path.to_string(), s),
+            None => m.remove(path),
+        };
+    }
+
+    /// Request counters of a static file.
+    pub fn static_stats(&self, path: &str) -> Arc<ResourceStats> {
+        self.state.stats(&format!("static/{path}"))
+    }
 }
 
 impl Drop for TestServer {
@@ -179,6 +205,7 @@ pub fn router(state: Arc<ServerState>) -> Router {
         .route("/admin/bump/{name}", post(bump))
         .route("/redirect", get(redirect))
         .route("/page", get(page))
+        .route("/static/{*path}", get(serve_static))
         .with_state(state)
 }
 
@@ -277,6 +304,84 @@ async fn page(Query(q): Query<PageQuery>) -> impl IntoResponse {
     }
     body.push_str("</body></html>");
     ([(header::CONTENT_TYPE, "text/html; charset=utf-8")], body)
+}
+
+fn static_mime(path: &str) -> &'static str {
+    match path
+        .rsplit_once('.')
+        .map(|(_, e)| e.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("m3u8") => "application/vnd.apple.mpegurl",
+        Some("mpd") => "application/dash+xml",
+        Some("ts") => "video/mp2t",
+        Some("mp4" | "m4s" | "m4v") => "video/mp4",
+        Some("m4a") => "audio/mp4",
+        Some("aac") => "audio/aac",
+        Some("vtt") => "text/vtt",
+        Some("html") => "text/html; charset=utf-8",
+        _ => "application/octet-stream",
+    }
+}
+
+/// `GET /static/{path}`: files below the configured directory.
+async fn serve_static(
+    State(state): State<Arc<ServerState>>,
+    Path(path): Path<String>,
+    headers: HeaderMap,
+) -> Response<Body> {
+    let stats = state.stats(&format!("static/{path}"));
+    stats.requests.fetch_add(1, Ordering::SeqCst);
+    let status = |s: StatusCode| Response::builder().status(s).body(Body::empty()).unwrap();
+    if let Some(s) = state.forced_status.lock().get(&path).copied() {
+        return status(StatusCode::from_u16(s).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR));
+    }
+    if path
+        .split('/')
+        .any(|c| c.is_empty() || c == "." || c == "..")
+        || path.contains('\\')
+    {
+        return status(StatusCode::BAD_REQUEST);
+    }
+    let Some(root) = state.static_root.lock().clone() else {
+        return status(StatusCode::NOT_FOUND);
+    };
+    let Ok(data) = tokio::fs::read(root.join(&path)).await else {
+        return status(StatusCode::NOT_FOUND);
+    };
+    let size = data.len() as u64;
+    let builder = Response::builder()
+        .header(header::CONTENT_TYPE, static_mime(&path))
+        .header(header::ACCEPT_RANGES, "bytes");
+    let range = headers.get(header::RANGE).and_then(|v| v.to_str().ok());
+    let (builder, body) = match range {
+        Some(r) => match parse_range(r, size) {
+            Some((a, b)) => {
+                stats.range_requests.fetch_add(1, Ordering::SeqCst);
+                (
+                    builder
+                        .status(StatusCode::PARTIAL_CONTENT)
+                        .header(header::CONTENT_RANGE, format!("bytes {a}-{b}/{size}")),
+                    data[a as usize..=b as usize].to_vec(),
+                )
+            }
+            None => {
+                return Response::builder()
+                    .status(StatusCode::RANGE_NOT_SATISFIABLE)
+                    .header(header::CONTENT_RANGE, format!("bytes */{size}"))
+                    .body(Body::empty())
+                    .unwrap()
+            }
+        },
+        None => (builder.status(StatusCode::OK), data),
+    };
+    stats
+        .bytes_sent
+        .fetch_add(body.len() as u64, Ordering::SeqCst);
+    builder
+        .header(header::CONTENT_LENGTH, body.len())
+        .body(Body::from(body))
+        .unwrap()
 }
 
 struct ActiveGuard(Arc<ResourceStats>);

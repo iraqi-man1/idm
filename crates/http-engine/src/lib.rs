@@ -556,6 +556,62 @@ pub async fn probe(
     }
 }
 
+/// A complete small response body (playlists, keys, media segments).
+pub struct Fetched {
+    pub body: Bytes,
+    pub final_url: String,
+    pub mime: Option<String>,
+}
+
+/// `GET` a resource (optionally an inclusive byte range) and read the whole
+/// body, refusing bodies larger than `max_len`.
+pub async fn fetch_bytes(
+    client: &Client,
+    ctx: &RequestContext,
+    range: Option<(u64, u64)>,
+    max_len: usize,
+) -> Result<Fetched, HttpError> {
+    let mut rb = ctx.request(client)?;
+    if let Some((a, b)) = range {
+        rb = rb.header(header::RANGE, format!("bytes={a}-{b}"));
+    }
+    let resp = rb.send().await?;
+    let status = resp.status();
+    if !(status.is_success()) {
+        return Err(status_error(&resp));
+    }
+    if range.is_some() && status != StatusCode::PARTIAL_CONTENT {
+        return Err(HttpError::RangeIgnored);
+    }
+    if content_length(resp.headers()).is_some_and(|l| l as usize > max_len) {
+        return Err(HttpError::Other(format!(
+            "response larger than {max_len} bytes"
+        )));
+    }
+    let final_url = resp.url().to_string();
+    let mime = resp
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim().to_string());
+    let mut body = bytes::BytesMut::new();
+    let mut stream = resp.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        if body.len() + chunk.len() > max_len {
+            return Err(HttpError::Other(format!(
+                "response larger than {max_len} bytes"
+            )));
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(Fetched {
+        body: body.freeze(),
+        final_url,
+        mime,
+    })
+}
+
 /// Plain `GET` without a `Range` header, for servers whose range responses
 /// cannot be trusted. The download proceeds over a single connection.
 pub async fn probe_plain(client: &Client, ctx: &RequestContext) -> Result<Probe, HttpError> {

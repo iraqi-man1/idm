@@ -93,7 +93,7 @@ dependencies = [
  "objc2-foundation",
  "parking_lot",
  "percent-encoding",
- "windows-sys 0.52.0",
+ "windows-sys 0.60.2",
  "wl-clipboard-rs",
  "x11rb",
 ]
@@ -3776,6 +3776,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "roxmltree"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1964b10c76125c36f8afe190065a4bf9a87bf324842c05701330bba9f1cacbb"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "rusqlite"
 version = "0.40.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5748,6 +5757,33 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+ "velox-test-server",
+ "velox-types",
+]
+
+[[package]]
+name = "velox-media"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "bytes",
+ "cbc",
+ "futures",
+ "hex",
+ "parking_lot",
+ "roxmltree",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "velox-core",
+ "velox-http",
+ "velox-persistence",
  "velox-test-server",
  "velox-types",
 ]
