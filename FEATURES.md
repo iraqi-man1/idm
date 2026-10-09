@@ -114,8 +114,8 @@ application) was driven in an automated test; see `DEVELOPMENT_PROGRESS.md`.
 | Feature | Status | Notes |
 |---|---|---|
 | Pinned, checksum-verified FFmpeg/ffprobe/yt-dlp | ✅ | Windows x64 and Linux x64 hashes verified by download; macOS FFmpeg not pinned |
-| Windows NSIS installer with offline WebView2, native-host registration hooks | 🟡 | configured; built by `release.yml` (not run here); clean-machine gate pending |
-| Linux AppImage / .deb | 🟡 | .deb release build verified here; AppImage built by `release.yml`; see KNOWN_ISSUES for .deb |
+| Windows NSIS installer with offline WebView2, native-host registration hooks | 🟡 | built by `release.yml` on GitHub Actions; contents (app, host, FFmpeg, ffprobe, yt-dlp, extensions, notices, WebView2 offline installer) checked by `scripts/check-installer.sh`; never installed on a clean machine yet (gate pending) |
+| Linux AppImage / .deb | 🟡 | .deb release build verified here; AppImage built and content-checked by `release.yml`, not run on a clean machine; see KNOWN_ISSUES for .deb |
 | macOS .dmg | ⏳ | needs a pinned FFmpeg source and signing/notarization |
 | Signed auto-updates | 🟡 | updater wired; signing key must be configured by the maintainer |
 | CI on Linux and Windows, E2E in CI | 🟡 | workflows written; first run pending |

@@ -61,6 +61,7 @@ same for the yt-dlp tests.
     `ERROR_PIPE_BUSY`. CI runs with `--no-fail-fast`.
   * Two E2E races (text read during a dialog's fade-in; column menu click)
     were fixed in the test.
+  * CI is green on all four jobs (Linux, Windows, UI/extensions, E2E).
   * A manual `Release` run built the Windows NSIS installer (13 min) and the
     Linux AppImage on the first attempt. The second run's content check
     listed the Windows installer (311 MiB): `velox-desktop.exe`,
@@ -225,9 +226,10 @@ same for the yt-dlp tests.
 
 ## Next steps
 
-1. Get the Windows CI job green and build the NSIS installer with a manual
-   `Release` run.
-2. Execute the clean-machine gate on Windows 10 and 11 VMs and record the
-   results in `docs/testing/clean-machine-test.md`.
-3. Configure the updater signing key and, when available, an Authenticode
+1. Execute the clean-machine gate on Windows 10 and 11 VMs with the
+   installer from a manual `Release` run and record the results in
+   `docs/testing/clean-machine-test.md`.
+2. Configure the updater signing key and, when available, an Authenticode
    certificate (`RELEASE_CHECKLIST.md`).
+3. Pin the GitHub Actions to commit SHAs; move off the Node 20 based action
+   versions GitHub has deprecated.
