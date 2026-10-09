@@ -10,7 +10,7 @@
 //
 // Usage:
 //   node scripts/prepare-release.mjs [--target <triple>] [--skip-host] [--skip-extensions]
-//   node scripts/prepare-release.mjs update-lock   # refresh hashes from upstream checksum lists
+//   node scripts/prepare-release.mjs update-lock   # re-pin FFmpeg, refresh hashes (see updateLock)
 //
 // Needs curl, tar and (on Linux/macOS, for zip archives) unzip.
 
@@ -117,10 +117,67 @@ function buildHost(target) {
   console.log(`velox-nmh -> ${path.relative(root, dest)}`);
 }
 
+const BTBN = "BtbN/FFmpeg-Builds";
+const BTBN_ASSET = /^ffmpeg-(n\d+\.\d+)-.+-(win64|winarm64|linux64|linuxarm64)-(.+)\.(zip|tar\.xz)$/;
+
+function curlText(url, headers = []) {
+  return execFileSync("curl", ["-fsSL", "--proto", "=https", ...headers.flatMap((h) => ["-H", h]), url], {
+    encoding: "utf8",
+    maxBuffer: 64 << 20,
+  });
+}
+
+// BtbN keeps the last build of each month for two years, but only 14 daily
+// builds and a floating "latest" that changes every day. Pin the last build
+// of the most recent completed month so the URLs and hashes stay valid.
+function pinMonthlyFfmpeg(lock) {
+  const headers = ["Accept: application/vnd.github+json"];
+  if (process.env.GITHUB_TOKEN) headers.push(`Authorization: Bearer ${process.env.GITHUB_TOKEN}`);
+  const releases = JSON.parse(curlText(`https://api.github.com/repos/${BTBN}/releases?per_page=100`, headers));
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const tags = releases
+    .map((r) => r.tag_name)
+    .filter((t) => /^autobuild-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(t) && t.slice(10, 17) < thisMonth)
+    .sort();
+  const tag = tags.at(-1);
+  if (!tag) fail(`no completed-month build found in ${BTBN}`);
+  const checksums = `https://github.com/${BTBN}/releases/download/${tag}/checksums.sha256`;
+  const assets = curlText(checksums)
+    .split("\n")
+    .map((l) => l.trim().split(/\s+/)[1]?.replace(/^\*/, ""))
+    .filter(Boolean);
+  for (const tool of ["ffmpeg", "ffprobe"]) {
+    lock.tools[tool].checksums = checksums;
+    lock.tools[tool].version = lock.tools[tool].version.replace(/ \(BtbN.*$/, ` (BtbN LGPL static build, ${tag})`);
+    for (const [target, entries] of Object.entries(lock.targets)) {
+      const e = entries[tool];
+      const m = e?.asset?.match(BTBN_ASSET);
+      if (!m) continue;
+      const [, branch, platform, variant, ext] = m;
+      const found = assets.filter((a) => {
+        const n = a.match(BTBN_ASSET);
+        return n && n[1] === branch && n[2] === platform && n[3] === variant && n[4] === ext;
+      });
+      if (found.length !== 1) fail(`${target} ${tool}: expected one ${branch} ${platform} ${variant} asset in ${tag}, found ${found.length}`);
+      const asset = found[0];
+      const stem = asset.slice(0, -(ext.length + 1));
+      const exe = path.basename(e.member);
+      if (asset !== e.asset) console.log(`${target} ${tool}: ${e.asset} -> ${tag}/${asset}`);
+      Object.assign(e, {
+        url: `https://github.com/${BTBN}/releases/download/${tag}/${asset}`,
+        asset,
+        member: `${stem}/bin/${exe}`,
+        license_member: `${stem}/LICENSE.txt`,
+      });
+    }
+  }
+}
+
 function updateLock(lock) {
+  pinMonthlyFfmpeg(lock);
   let changed = 0;
   for (const tool of TOOLS) {
-    const list = execFileSync("curl", ["-fsSL", "--proto", "=https", lock.tools[tool].checksums], { encoding: "utf8" });
+    const list = curlText(lock.tools[tool].checksums);
     const sums = new Map(
       list
         .split("\n")

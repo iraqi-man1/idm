@@ -25,11 +25,16 @@ Mark an item only after actually performing it. Record results in
 (BtbN LGPL builds) and yt-dlp per target. `scripts/prepare-release.mjs`
 refuses to bundle a file whose hash differs.
 
-* BtbN's `latest` builds are rebuilt regularly. When CI reports a SHA-256
-  mismatch, run `node scripts/prepare-release.mjs update-lock`, review the
-  changed hashes (and the upstream release notes), and commit the lock file.
-* To move to a new yt-dlp or FFmpeg version, change the URLs/asset names and
-  the checksum list URL in the lock file, then run `update-lock`.
+* FFmpeg is pinned to the last BtbN build of a month: BtbN keeps those for
+  two years (daily builds for 14 days; its `latest` URL changes every day
+  and must not be pinned). To move to a newer build, run the **Refresh
+  pinned tools** workflow (Actions → Run workflow) or
+  `node scripts/prepare-release.mjs update-lock` with network access to the
+  GitHub API. It pins the last build of the most recent completed month,
+  refreshes every hash and verifies the downloads; review the diff (and the
+  upstream changes) and commit the lock file. Refresh at least once a year.
+* To move to a new yt-dlp version or FFmpeg release branch, change the
+  version, URLs and asset names in the lock file, then run `update-lock`.
 * macOS has no pinned FFmpeg source yet (the lock entries are `null`); a
   macOS release needs a verified FFmpeg/ffprobe build added first.
 
