@@ -102,6 +102,15 @@ same for the yt-dlp tests.
   fail; all fixed with tests.
   Comparative "IDM-class/IDM-style" wording was removed from docs and
   comments; the non-affiliation statement remains.
+* FFmpeg/ffprobe were pinned to BtbN's floating `latest` release, which is
+  rebuilt daily, so CI's Windows job broke on the next upstream rebuild
+  (the hash check refused the new file, as designed). The lock now pins the
+  last build of a month (BtbN keeps those for two years): currently
+  `autobuild-2026-09-30-13-08`, FFmpeg n8.1.3. `update-lock` finds the
+  newest such build itself (or takes `--btbn-tag`), and the manual
+  "Refresh pinned tools" workflow runs it and verifies the downloads. The
+  new pins were downloaded, verified and extracted here for Windows and
+  Linux x64, and the media test suite passes with them.
 * MSRV corrected to 1.90 (Tauri 2.12, russh 0.64 and suppaftp 12 require
   it). README states plainly that no release exists yet.
 

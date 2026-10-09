@@ -10,7 +10,8 @@
 //
 // Usage:
 //   node scripts/prepare-release.mjs [--target <triple>] [--skip-host] [--skip-extensions]
-//   node scripts/prepare-release.mjs update-lock   # re-pin FFmpeg, refresh hashes (see updateLock)
+//   node scripts/prepare-release.mjs update-lock [--btbn-tag autobuild-...]
+//                                                  # re-pin FFmpeg, refresh hashes
 //
 // Needs curl, tar and (on Linux/macOS, for zip archives) unzip.
 
@@ -118,7 +119,11 @@ function buildHost(target) {
 }
 
 const BTBN = "BtbN/FFmpeg-Builds";
-const BTBN_ASSET = /^ffmpeg-(n\d+\.\d+)-.+-(win64|winarm64|linux64|linuxarm64)-(.+)\.(zip|tar\.xz)$/;
+// "ffmpeg-n8.1.3-9-g29e619e767-win64-lgpl-8.1.zip" (dated) or
+// "ffmpeg-n8.1-latest-win64-lgpl-8.1.zip": release builds start with a
+// lowercase "n" (master builds are "N-..."); the variant ("lgpl-8.1") names
+// the release branch.
+const BTBN_ASSET = /^ffmpeg-n[\d.]+-.+-(win64|winarm64|linux64|linuxarm64)-(.+)\.(zip|tar\.xz)$/;
 
 function curlText(url, headers = []) {
   return execFileSync("curl", ["-fsSL", "--proto", "=https", ...headers.flatMap((h) => ["-H", h]), url], {
@@ -130,7 +135,7 @@ function curlText(url, headers = []) {
 // BtbN keeps the last build of each month for two years, but only 14 daily
 // builds and a floating "latest" that changes every day. Pin the last build
 // of the most recent completed month so the URLs and hashes stay valid.
-function pinMonthlyFfmpeg(lock) {
+function lastMonthlyBuild() {
   const headers = ["Accept: application/vnd.github+json"];
   if (process.env.GITHUB_TOKEN) headers.push(`Authorization: Bearer ${process.env.GITHUB_TOKEN}`);
   const releases = JSON.parse(curlText(`https://api.github.com/repos/${BTBN}/releases?per_page=100`, headers));
@@ -139,8 +144,14 @@ function pinMonthlyFfmpeg(lock) {
     .map((r) => r.tag_name)
     .filter((t) => /^autobuild-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(t) && t.slice(10, 17) < thisMonth)
     .sort();
-  const tag = tags.at(-1);
-  if (!tag) fail(`no completed-month build found in ${BTBN}`);
+  if (!tags.length) fail(`no completed-month build found in ${BTBN}`);
+  return tags.at(-1);
+}
+
+// `tag` pins a given build (it should be the last build of a month, or it
+// disappears after 14 days); without it, the newest such build is looked up.
+function pinMonthlyFfmpeg(lock, tag = lastMonthlyBuild()) {
+  if (!/^autobuild-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(tag)) fail(`not a BtbN build tag: ${tag}`);
   const checksums = `https://github.com/${BTBN}/releases/download/${tag}/checksums.sha256`;
   const assets = curlText(checksums)
     .split("\n")
@@ -153,12 +164,12 @@ function pinMonthlyFfmpeg(lock) {
       const e = entries[tool];
       const m = e?.asset?.match(BTBN_ASSET);
       if (!m) continue;
-      const [, branch, platform, variant, ext] = m;
+      const [, platform, variant, ext] = m;
       const found = assets.filter((a) => {
         const n = a.match(BTBN_ASSET);
-        return n && n[1] === branch && n[2] === platform && n[3] === variant && n[4] === ext;
+        return n && n[1] === platform && n[2] === variant && n[3] === ext;
       });
-      if (found.length !== 1) fail(`${target} ${tool}: expected one ${branch} ${platform} ${variant} asset in ${tag}, found ${found.length}`);
+      if (found.length !== 1) fail(`${target} ${tool}: expected one ${platform} ${variant} asset in ${tag}, found ${found.length}`);
       const asset = found[0];
       const stem = asset.slice(0, -(ext.length + 1));
       const exe = path.basename(e.member);
@@ -173,8 +184,8 @@ function pinMonthlyFfmpeg(lock) {
   }
 }
 
-function updateLock(lock) {
-  pinMonthlyFfmpeg(lock);
+function updateLock(lock, btbnTag) {
+  pinMonthlyFfmpeg(lock, btbnTag);
   let changed = 0;
   for (const tool of TOOLS) {
     const list = curlText(lock.tools[tool].checksums);
@@ -204,7 +215,8 @@ function updateLock(lock) {
 const args = process.argv.slice(2);
 const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
 if (args[0] === "update-lock") {
-  updateLock(lock);
+  const ti = args.indexOf("--btbn-tag");
+  updateLock(lock, ti >= 0 ? args[ti + 1] : undefined);
 } else {
   const ti = args.indexOf("--target");
   const target = ti >= 0 ? args[ti + 1] : hostTriple();
