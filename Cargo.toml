@@ -9,6 +9,7 @@ members = [
     "crates/download-core",
     "crates/native-messaging",
     "crates/media-engine",
+    "crates/scheduler",
     "apps/desktop/src-tauri",
 ]
 

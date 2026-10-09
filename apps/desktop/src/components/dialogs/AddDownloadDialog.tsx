@@ -19,6 +19,8 @@ import { Select } from "@/components/ui/select";
 import { api, errorMessage } from "@/lib/api";
 import { formatBytes, parseSize } from "@/lib/format";
 import { cn, isProbablyUrl } from "@/lib/utils";
+import { queueName } from "@/pages/QueuesPage";
+import { useQueues } from "@/stores/queues";
 import { useSettings } from "@/stores/settings";
 import { useUi } from "@/stores/ui";
 
@@ -48,6 +50,8 @@ export function AddDownloadDialog() {
   const [limit, setLimit] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [mediaChoice, setMediaChoice] = useState<MediaChoice | null>(null);
+  const queues = useQueues((s) => s.queues);
+  const [queueId, setQueueId] = useState("main");
   const probeSeq = useRef(0);
 
   // Reset when opened; prefill from the request or the clipboard.
@@ -164,6 +168,7 @@ export function AddDownloadDialog() {
         expected_size: mediaRequest ? null : info?.total_size ?? null,
         mime: mediaRequest ? null : info?.mime ?? null,
         media: mediaRequest,
+        queue_id: queueId,
       };
       const d = await api.addDownload(req);
       closeAdd();
@@ -347,6 +352,16 @@ export function AddDownloadDialog() {
                 <p className="text-xs text-muted-foreground">
                   {checksumAlgo ? checksumAlgo.toUpperCase() : t("add.checksumHint")}
                 </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("add.queue")}</Label>
+                <Select
+                  value={queueId}
+                  onChange={setQueueId}
+                  className="w-full"
+                  ariaLabel={t("add.queue")}
+                  options={queues.map((q) => ({ value: q.id, label: queueName(q, t) }))}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>{t("add.speedLimit")}</Label>

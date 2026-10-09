@@ -65,6 +65,23 @@ def set_value(driver, el, value):
     )
 
 
+def field_switch(driver, label):
+    """The switch on the settings/queue row labelled `label`."""
+    return driver.find_element(
+        By.XPATH, f"//label[normalize-space(.)='{label}']/ancestor::div[contains(@class,'py-3')][1]//button[@role='switch']"
+    )
+
+
+def pick(driver, combobox, option_text):
+    """Choose an option of a Radix select (WebKitWebDriver needs move + Enter)."""
+    combobox.click()
+    opt = wait_for(lambda: driver.find_elements(By.XPATH, f"//div[@role='option'][contains(.,'{option_text}')]"), what=option_text)[0]
+    time.sleep(0.3)
+    ActionChains(driver).move_to_element(opt).perform()
+    ActionChains(driver).send_keys(Keys.ENTER).perform()
+    wait_for(lambda: option_text in combobox.text, what=f"{option_text} selected")
+
+
 def row_status(driver, name):
     rows = driver.find_elements(By.XPATH, f"//div[@data-index][.//span[normalize-space(.)='{name}']]")
     # textContent: WebKitWebDriver's visible-text algorithm skips truncated cells.
@@ -213,6 +230,70 @@ def main():
             assert "Not available" not in driver.execute_script("return arguments[0].textContent", tool)
             driver.save_screenshot(os.path.join(args.out, "05c-media-tools.png"))
             by_text(driver, "button", "All downloads").click()
+
+        step("scheduler: a queue scheduled for the next minute")
+        by_text(driver, "button", "Scheduler").click()
+        new = wait_for(lambda: driver.find_elements(By.XPATH, "//input[@placeholder='New queue name']"), what="scheduler page")[0]
+        set_value(driver, new, "Night")
+        driver.find_element(By.XPATH, "//button[@aria-label='Create queue']").click()
+        wait_for(lambda: by_text(driver, "h2", "Night"), what="queue editor")
+        pick(driver, driver.find_element(By.XPATH, "//button[@role='combobox'][@aria-label='When the queue finishes']"), "Quit Velox")
+        field_switch(driver, "Start and stop this queue automatically").click()
+        # The next minute boundary (local time, as the app uses); leave at least 15 s to set up.
+        now = time.time()
+        start = now + 60 - (now % 60) + (60 if now % 60 > 45 else 0)
+        hhmm = time.strftime("%H:%M", time.localtime(start))
+        start_input = wait_for(lambda: driver.find_elements(By.XPATH, "//input[@type='time']"), what="time input")[0]
+        # Enabling fills in a default start time; wait for it before typing ours.
+        wait_for(lambda: start_input.get_attribute("value") == "02:00", what="default start time")
+        set_value(driver, start_input, hhmm)
+        driver.execute_script("arguments[0].blur()", start_input)
+        time.sleep(1)
+        assert start_input.get_attribute("value") == hhmm, start_input.get_attribute("value")
+        driver.save_screenshot(os.path.join(args.out, "06a-scheduler.png"))
+
+        step("add a download to the stopped queue")
+        by_text(driver, "button", "All downloads").click()
+        wait_for(lambda: by_text(driver, "button", "Add URL"), what="downloads view").click()
+        area = wait_for(lambda: driver.find_element(By.ID, "add-url"), what="url field")
+        set_value(driver, area, f"{args.server}/file/night.bin?size=2097152")
+        wait_for(lambda: by_text(driver, "b", "2.0 MB"), what="probe result")
+        by_text(driver, "button", "Advanced options").click()
+        pick(driver, wait_for(lambda: driver.find_element(By.XPATH, "//button[@role='combobox'][@aria-label='Queue']"), what="queue select"), "Night")
+        by_text(driver, "button", "Add to queue").click()
+        wait_for(lambda: "Queued" in (row_status(driver, "night.bin") or ""), what="queued in Night")
+        assert time.time() < start - 2, "setup took too long for the scheduled minute"
+        time.sleep(1.5)
+        assert "Queued" in row_status(driver, "night.bin"), "must wait for the start time"
+
+        step(f"queue starts at {hhmm} and the download completes")
+        wait_for(lambda: "Completed" in (row_status(driver, "night.bin") or ""), timeout=start - time.time() + 40, what="scheduled download")
+        assert time.time() >= start - 1, "started before its time"
+        assert os.path.getsize(os.path.join(args.downloads, "night.bin")) == 2_097_152
+
+        step("post-completion countdown can be cancelled")
+        dialog = wait_for(lambda: driver.find_elements(By.CSS_SELECTOR, "[data-testid='post-action-dialog']"), timeout=15, what="countdown")[0]
+        assert "Velox will quit" in dialog.text, dialog.text
+        driver.save_screenshot(os.path.join(args.out, "06b-post-action.png"))
+        dialog.find_element(By.XPATH, ".//button[normalize-space(.)='Cancel']").click()
+        wait_for(lambda: not driver.find_elements(By.CSS_SELECTOR, "[data-testid='post-action-dialog']"), what="countdown closed")
+
+        step("clipboard monitor offers a copied download link")
+        by_text(driver, "button", "Settings").click()
+        wait_for(lambda: by_text(driver, "button", "General"), what="settings").click()
+        field_switch(driver, "Watch the clipboard for download links").click()
+        time.sleep(2)  # the monitor ignores what was on the clipboard before
+        clip_url = f"{args.server}/file/clip.zip?size=1000"
+        xclip = subprocess.Popen(["xclip", "-selection", "clipboard"], stdin=subprocess.PIPE)
+        xclip.communicate(clip_url.encode(), timeout=5)
+        area = wait_for(
+            lambda: (lambda e: e[0] if e and e[0].get_attribute("value") == clip_url else None)(driver.find_elements(By.ID, "add-url")),
+            timeout=15,
+            what="add dialog with the copied link",
+        )
+        driver.save_screenshot(os.path.join(args.out, "06c-clipboard.png"))
+        by_text(driver, "button", "Cancel").click()
+        by_text(driver, "button", "All downloads").click()
 
         step("statistics page")
         by_text(driver, "button", "Statistics").click()

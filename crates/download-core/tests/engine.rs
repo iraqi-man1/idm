@@ -733,3 +733,54 @@ async fn commands_work_from_non_runtime_threads() {
     let done = wait_finished(&mgr, id, Duration::from_secs(30)).await;
     assert_eq!(done.status, DownloadStatus::Completed, "{:?}", done.error);
 }
+
+/// Regression: `start` held the running map while locking the record, and
+/// `list` locks a record and then the running map. The scheduler lists
+/// downloads as soon as one is added, i.e. while `add` starts it, which
+/// occasionally deadlocked a new download in the app. The race is timing
+/// dependent: with the old lock order this test failed about one run in
+/// three; it must never fail now.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn listing_while_starting_does_not_deadlock() {
+    let env = Env::new();
+    let server = TestServer::start().await;
+    let mgr = env.manager().await;
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let listers: Vec<_> = (0..4)
+        .map(|_| {
+            let (mgr, stop) = (mgr.clone(), stop.clone());
+            std::thread::spawn(move || {
+                while !stop.load(Ordering::SeqCst) {
+                    let _ = mgr.list();
+                }
+            })
+        })
+        .collect();
+    // A deadlock blocks this thread inside a lock, where no async timeout
+    // can fire: a watchdog turns it into a failure instead of a hang.
+    let done = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    {
+        let done = done.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_secs(90));
+            if !done.load(Ordering::SeqCst) {
+                eprintln!(
+                    "listing_while_starting_does_not_deadlock: DEADLOCK (no progress for 90 s)"
+                );
+                std::process::exit(101);
+            }
+        });
+    }
+    for i in 0..300 {
+        let mut r = req(server.url(&format!("/file/dl{i}.bin?size=2000")));
+        r.connections = Some(1);
+        r.start = StartMode::Paused;
+        let id = mgr.add(r).await.unwrap().id;
+        mgr.start(id).unwrap();
+    }
+    done.store(true, Ordering::SeqCst);
+    stop.store(true, Ordering::SeqCst);
+    for l in listers {
+        l.join().unwrap();
+    }
+}

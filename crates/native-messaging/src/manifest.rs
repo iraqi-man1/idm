@@ -182,13 +182,6 @@ pub struct BrowserStatus {
     pub error: Option<String>,
 }
 
-fn manifest_file_name(family: Family) -> String {
-    match family {
-        Family::Chromium => format!("{NATIVE_HOST_NAME}.json"),
-        Family::Firefox => format!("{NATIVE_HOST_NAME}.json"),
-    }
-}
-
 fn write_manifest(path: &Path, value: &serde_json::Value) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
@@ -220,7 +213,7 @@ fn manifest_location(b: &BrowserTarget) -> Option<PathBuf> {
     Some(
         config_root(b)?
             .join(b.manifest_subdir)
-            .join(manifest_file_name(b.family)),
+            .join(format!("{NATIVE_HOST_NAME}.json")),
     )
 }
 

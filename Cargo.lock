@@ -5741,7 +5741,9 @@ dependencies = [
  "velox-media",
  "velox-nm",
  "velox-persistence",
+ "velox-scheduler",
  "velox-types",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5825,6 +5827,25 @@ dependencies = [
  "uuid",
  "velox-segments",
  "velox-types",
+]
+
+[[package]]
+name = "velox-scheduler"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "parking_lot",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "uuid",
+ "velox-core",
+ "velox-persistence",
+ "velox-test-server",
+ "velox-types",
+ "windows",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

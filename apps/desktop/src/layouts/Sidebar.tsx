@@ -7,7 +7,10 @@ import {
   Inbox,
   ListOrdered,
   PauseCircle,
+  PlayCircle,
   Settings,
+  Settings2,
+  Timer,
 } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -16,6 +19,7 @@ import { categoryIcon } from "@/components/FileIcon";
 import { cn } from "@/lib/utils";
 import { countByFilter, type ViewFilter } from "@/lib/view";
 import { useDownloads } from "@/stores/downloads";
+import { useQueues } from "@/stores/queues";
 import { type Page, useUi } from "@/stores/ui";
 
 const STATUS_ITEMS: Array<{ f: ViewFilter; key: string; icon: typeof Inbox }> = [
@@ -70,11 +74,16 @@ export function Sidebar() {
   const setFilter = useDownloads((s) => s.setFilter);
   const page = useUi((s) => s.page);
   const setPage = useUi((s) => s.setPage);
+  const queues = useQueues((s) => s.queues);
 
   const counts = useMemo(() => {
     const filters: ViewFilter[] = [...STATUS_ITEMS.map((s) => s.f), ...CATEGORIES.map((c) => `cat:${c}` as ViewFilter)];
     return countByFilter(Object.values(items), filters);
   }, [items]);
+  const queueCounts = useMemo(
+    () => countByFilter(Object.values(items), queues.map((q) => `queue:${q.id}` as ViewFilter)),
+    [items, queues],
+  );
 
   const go = (f: ViewFilter) => {
     setFilter(f);
@@ -120,8 +129,35 @@ export function Sidebar() {
             ))}
           </div>
         </div>
+        <div>
+          <div className="flex items-center px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+            {t("nav.queues")}
+            <button
+              onClick={() => setPage("queues")}
+              aria-label={t("queues.manage")}
+              title={t("queues.manage")}
+              className="ms-auto rounded p-0.5 hover:bg-accent hover:text-foreground"
+            >
+              <Settings2 className="size-3.5" />
+            </button>
+          </div>
+          <div className="space-y-0.5">
+            {queues.map((q) => (
+              <NavButton
+                key={q.id}
+                active={page === "downloads" && filter === `queue:${q.id}`}
+                icon={q.running ? PlayCircle : PauseCircle}
+                tone={q.running ? "text-success" : undefined}
+                label={q.built_in ? t("queues.main") : q.name}
+                count={queueCounts[`queue:${q.id}`]}
+                onClick={() => go(`queue:${q.id}`)}
+              />
+            ))}
+          </div>
+        </div>
       </nav>
       <div className="space-y-0.5 border-t border-border p-2.5">
+        {pageBtn("queues", Timer, t("nav.scheduler"))}
         {pageBtn("statistics", BarChart3, t("nav.statistics"))}
         {pageBtn("settings", Settings, t("nav.settings"))}
       </div>

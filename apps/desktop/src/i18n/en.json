@@ -47,7 +47,8 @@
     "other": "Other",
     "queues": "Queues",
     "statistics": "Statistics",
-    "settings": "Settings"
+    "settings": "Settings",
+    "scheduler": "Scheduler"
   },
   "toolbar": {
     "add": "Add URL",
@@ -151,7 +152,8 @@
     "mediaFailed": "Could not read the media formats: {{error}}",
     "audioOnly": "Audio only",
     "keepOriginal": "Keep original",
-    "mediaAudioTrack": "Audio track"
+    "mediaAudioTrack": "Audio track",
+    "queue": "Queue"
   },
   "batch": {
     "title": "Batch import",
@@ -453,5 +455,50 @@
   },
   "capture": {
     "title": "Download file info"
+  },
+  "queues": {
+    "title": "Queues and scheduler",
+    "main": "Main queue",
+    "manage": "Manage queues",
+    "newPlaceholder": "New queue name",
+    "create": "Create queue",
+    "running": "Running",
+    "stopped": "Stopped",
+    "start": "Start queue",
+    "stop": "Stop queue",
+    "delete": "Delete queue",
+    "confirmDelete": "Confirm: its downloads move to the main queue",
+    "name": "Name",
+    "maxConcurrent": "Downloads at the same time",
+    "retryFailed": "Retry failed downloads when the queue starts",
+    "postAction": "When the queue finishes",
+    "postActionHint": "You get a 60-second countdown to cancel.",
+    "post_none": "Do nothing",
+    "post_exit": "Quit Velox",
+    "post_sleep": "Sleep",
+    "post_hibernate": "Hibernate",
+    "post_shutdown": "Shut down the computer",
+    "downloads": "Waiting or running downloads: {{count}}",
+    "showDownloads": "Show downloads",
+    "schedule": "Schedule",
+    "scheduleEnabled": "Start and stop this queue automatically",
+    "startTime": "Start at",
+    "stopTime": "Stop at",
+    "timeHint": "Leave empty for none",
+    "days": "Days",
+    "everyDay": "No day selected: every day",
+    "holdBattery": "Queues held: low battery",
+    "holdMetered": "Queues held: metered connection",
+    "moveTo": "Move to queue"
+  },
+  "postAction": {
+    "title": "Queue finished",
+    "body_exit": "\"{{queue}}\" finished. Velox will quit in {{seconds}} s.",
+    "body_sleep": "\"{{queue}}\" finished. The computer will sleep in {{seconds}} s.",
+    "body_hibernate": "\"{{queue}}\" finished. The computer will hibernate in {{seconds}} s.",
+    "body_shutdown": "\"{{queue}}\" finished. The computer will shut down in {{seconds}} s.",
+    "body_none": "\"{{queue}}\" finished.",
+    "now": "Do it now",
+    "failed": "The action after the queue could not be performed"
   }
 }

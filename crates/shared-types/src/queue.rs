@@ -64,3 +64,33 @@ pub struct QueueUpdate {
     pub post_action: Option<PostAction>,
     pub retry_failed: Option<bool>,
 }
+
+/// Why queue processing is held back.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum PowerHold {
+    /// Running on battery below the configured threshold.
+    LowBattery,
+    /// The network connection is metered.
+    Metered,
+}
+
+/// Notifications from the scheduler.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[ts(export)]
+pub enum SchedulerEvent {
+    /// Queue definitions or their running state changed.
+    QueuesChanged { queues: Vec<QueueInfo> },
+    /// A started queue has no more waiting or running downloads.
+    QueueFinished {
+        queue_id: String,
+        name: String,
+        post_action: PostAction,
+        completed: u32,
+        failed: u32,
+    },
+    /// Queue processing is held back (`Some`) or allowed again (`None`).
+    PowerHold { hold: Option<PowerHold> },
+}

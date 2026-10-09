@@ -16,7 +16,12 @@ import type { LogLine } from "@/bindings/LogLine";
 import type { MediaProbeResult } from "@/bindings/MediaProbeResult";
 import type { MediaSourceKind } from "@/bindings/MediaSourceKind";
 import type { PendingCapture } from "@/bindings/PendingCapture";
+import type { PostAction } from "@/bindings/PostAction";
+import type { PowerHold } from "@/bindings/PowerHold";
 import type { ProgressSnapshot } from "@/bindings/ProgressSnapshot";
+import type { QueueInfo } from "@/bindings/QueueInfo";
+import type { QueueUpdate } from "@/bindings/QueueUpdate";
+import type { SchedulerEvent } from "@/bindings/SchedulerEvent";
 import type { StartMode } from "@/bindings/StartMode";
 import type { StatsSummary } from "@/bindings/StatsSummary";
 import type { ToolStatus } from "@/bindings/ToolStatus";
@@ -86,8 +91,27 @@ export const api = {
   mediaTools: () => invoke<ToolStatus[]>("get_media_tools"),
   probeMedia: (url: string, kind: MediaSourceKind, referer: string | null = null, cookies: string | null = null) =>
     invoke<MediaProbeResult>("probe_media", { url, kind, referer, cookies }),
+  queues: () => invoke<QueueInfo[]>("list_queues"),
+  createQueue: (name: string) => invoke<QueueInfo>("create_queue", { name }),
+  updateQueue: (id: string, update: Partial<QueueUpdate>) =>
+    invoke<QueueInfo>("update_queue", { id, update: { ...EMPTY_QUEUE_UPDATE, ...update } }),
+  deleteQueue: (id: string) => invoke<void>("delete_queue", { id }),
+  startQueue: (id: string) => invoke<void>("start_queue", { id }),
+  stopQueue: (id: string) => invoke<void>("stop_queue", { id }),
+  setDownloadQueue: (ids: string[], queueId: string) => invoke<void>("set_download_queue", { ids, queueId }),
+  powerHold: () => invoke<PowerHold | null>("get_power_hold"),
+  cancelPostAction: () => invoke<void>("cancel_post_action"),
+  runPostActionNow: () => invoke<void>("run_post_action_now"),
   quit: () => invoke<void>("quit_app"),
 };
+
+const EMPTY_QUEUE_UPDATE: QueueUpdate = { name: null, max_concurrent: null, schedule: null, post_action: null, retry_failed: null };
+
+export interface PostActionNotice {
+  action: PostAction;
+  queue: string;
+  seconds: number;
+}
 
 export const events = {
   engine: (cb: (e: EngineEvent) => void): Promise<UnlistenFn> =>
@@ -99,4 +123,11 @@ export const events = {
   batchUrls: (cb: (p: { urls: string[]; referer: string | null }) => void): Promise<UnlistenFn> =>
     listen<{ urls: string[]; referer: string | null }>("app://batch-urls", (ev) => cb(ev.payload)),
   browserStatusChanged: (cb: () => void): Promise<UnlistenFn> => listen("app://browser-status-changed", () => cb()),
+  scheduler: (cb: (e: SchedulerEvent) => void): Promise<UnlistenFn> =>
+    listen<SchedulerEvent>("app://scheduler", (ev) => cb(ev.payload)),
+  postAction: (cb: (n: PostActionNotice) => void): Promise<UnlistenFn> =>
+    listen<PostActionNotice>("app://post-action", (ev) => cb(ev.payload)),
+  postActionCancelled: (cb: () => void): Promise<UnlistenFn> => listen("app://post-action-cancelled", () => cb()),
+  postActionFailed: (cb: (error: string) => void): Promise<UnlistenFn> =>
+    listen<string>("app://post-action-failed", (ev) => cb(ev.payload)),
 };

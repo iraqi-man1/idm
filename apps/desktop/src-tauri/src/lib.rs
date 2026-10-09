@@ -6,10 +6,13 @@
 //! engine crates.
 
 mod bridge;
+mod clipboard;
 mod commands;
 mod error;
 mod integration;
 mod media_bridge;
+mod post_action;
+mod queues;
 mod security;
 mod state;
 mod tray;
@@ -207,6 +210,13 @@ pub fn run() {
                 has_updater,
                 log_guard,
             ));
+            let scheduler = tauri::async_runtime::block_on(async {
+                velox_scheduler::Scheduler::start(manager.clone(), Default::default())
+            });
+            queues::spawn_events(handle.clone(), &scheduler);
+            app.manage(scheduler);
+            app.manage(post_action::PostActions::default());
+            clipboard::spawn(handle.clone());
             app.manage(integration::Bridge::default());
             app.manage(integration::capture::Captures::default());
             bridge::spawn(handle.clone(), manager.clone());
@@ -281,6 +291,16 @@ pub fn run() {
             integration::commands::open_extension_folder,
             media_bridge::get_media_tools,
             media_bridge::probe_media,
+            queues::list_queues,
+            queues::create_queue,
+            queues::update_queue,
+            queues::delete_queue,
+            queues::start_queue,
+            queues::stop_queue,
+            queues::set_download_queue,
+            queues::get_power_hold,
+            post_action::cancel_post_action,
+            post_action::run_post_action_now,
         ])
         .build(context)
         .expect("error while building the application");

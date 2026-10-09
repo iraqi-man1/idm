@@ -9,7 +9,8 @@ default-run = "velox-desktop"
 
 [lib]
 name = "velox_desktop_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# Desktop only: the mobile library outputs (staticlib/cdylib) are not built.
+crate-type = ["rlib"]
 
 [[bin]]
 name = "velox-desktop"
@@ -24,6 +25,7 @@ velox-core = { workspace = true }
 velox-persistence = { workspace = true }
 velox-nm = { workspace = true }
 velox-media = { workspace = true }
+velox-scheduler = { workspace = true }
 velox-http = { workspace = true }
 tauri = { version = "2.12", features = ["tray-icon", "image-png"] }
 tauri-plugin-notification = "2.5"
@@ -50,6 +52,7 @@ hex = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 keyring = { version = "3.6", features = ["windows-native"] }
+windows-sys = { version = "0.61", features = ["Win32_System_Power"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 keyring = { version = "3.6", features = ["apple-native"] }

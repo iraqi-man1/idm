@@ -10,6 +10,7 @@ import {
   Gauge,
   Info,
   Link2,
+  ListOrdered,
   Pause,
   Pencil,
   Play,
@@ -43,7 +44,9 @@ import { api, errorMessage } from "@/lib/api";
 import { formatBytes, formatDate, formatDuration, formatPercent, formatSpeed } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { fraction, isActive, type Row, type SortKey } from "@/lib/view";
+import { queueName } from "@/pages/QueuesPage";
 import { useDownloads } from "@/stores/downloads";
+import { useQueues } from "@/stores/queues";
 import { useSettings } from "@/stores/settings";
 import { useUi } from "@/stores/ui";
 
@@ -137,6 +140,35 @@ function Cell({ row, col }: { row: Row; col: ColumnId }) {
   return t("common.unknown");
 }
 
+/** "Move to queue" for downloads that are not finished. */
+function QueueSubmenu({ rows }: { rows: DownloadInfo[] }) {
+  const { t } = useTranslation();
+  const queues = useQueues((s) => s.queues);
+  const movable = rows.filter((d) => d.status !== "completed");
+  if (movable.length === 0 || queues.length === 0) return null;
+  const move = (queueId: string) =>
+    api
+      .setDownloadQueue(
+        movable.map((d) => d.id),
+        queueId,
+      )
+      .catch((e) => toast.error(t("common.error"), { description: errorMessage(e) }));
+  return (
+    <ContextMenuSub>
+      <ContextMenuSubTrigger>
+        <ListOrdered /> {t("queues.moveTo")}
+      </ContextMenuSubTrigger>
+      <ContextMenuSubContent>
+        {queues.map((q) => (
+          <ContextMenuCheckboxItem key={q.id} checked={movable.every((d) => d.queue_id === q.id)} onSelect={() => void move(q.id)}>
+            {queueName(q, t)}
+          </ContextMenuCheckboxItem>
+        ))}
+      </ContextMenuSubContent>
+    </ContextMenuSub>
+  );
+}
+
 function RowMenu({ rows }: { rows: DownloadInfo[] }) {
   const { t } = useTranslation();
   const actions = useActions();
@@ -202,6 +234,7 @@ function RowMenu({ rows }: { rows: DownloadInfo[] }) {
           </ContextMenuSubContent>
         </ContextMenuSub>
       )}
+      <QueueSubmenu rows={rows} />
       <ContextMenuSeparator />
       {single && (
         <ContextMenuItem onSelect={() => actions.copyUrl(single)}>

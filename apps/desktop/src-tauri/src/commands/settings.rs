@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_autostart::ManagerExt;
 use velox_types::AppSettings;
 
@@ -57,6 +57,8 @@ pub fn update_settings(
             crate::integration::register(&state);
         }
     }
+    // Limits and power policy may allow (or hold) queued downloads now.
+    app.state::<velox_scheduler::Scheduler>().wake();
     let _ = app.emit("app://settings-changed", &saved);
     Ok(saved)
 }

@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { DownloadTable } from "@/components/DownloadTable";
 import { AddDownloadDialog } from "@/components/dialogs/AddDownloadDialog";
 import { BatchImportDialog } from "@/components/dialogs/BatchImportDialog";
+import { PostActionDialog } from "@/components/dialogs/PostActionDialog";
 import { ChecksumDialog, DeleteDialog, PropertiesDialog, RefreshUrlDialog, RenameDialog } from "@/components/dialogs/SmallDialogs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAppearance } from "@/hooks/useAppearance";
@@ -14,9 +15,11 @@ import { Toolbar } from "@/layouts/Toolbar";
 import { events } from "@/lib/api";
 import { extractUrls } from "@/lib/utils";
 import { matchesFilter, matchesSearch, mergeRow, sortRows } from "@/lib/view";
+import { QueuesPage } from "@/pages/QueuesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { StatisticsPage } from "@/pages/StatisticsPage";
 import { useDownloads } from "@/stores/downloads";
+import { useQueues } from "@/stores/queues";
 import { useUi } from "@/stores/ui";
 
 function DownloadsView() {
@@ -48,6 +51,14 @@ export default function App() {
   const openAdd = useUi((s) => s.openAdd);
   const setBatch = useUi((s) => s.setBatch);
   const [dragging, setDragging] = useState(false);
+
+  // Queue definitions, running state and power holds.
+  useEffect(() => {
+    const { load, apply } = useQueues.getState();
+    void load();
+    const un = events.scheduler(apply);
+    return () => void un.then((u) => u());
+  }, []);
 
   // URLs passed on the command line / second instance.
   useEffect(() => {
@@ -97,6 +108,7 @@ export default function App() {
           {page === "downloads" && <DownloadsView />}
           {page === "settings" && <SettingsPage />}
           {page === "statistics" && <StatisticsPage />}
+          {page === "queues" && <QueuesPage />}
           {dragging && <div className="pointer-events-none absolute inset-2 rounded-xl border-2 border-dashed border-primary bg-primary-soft/40" />}
         </main>
       </div>
@@ -107,6 +119,7 @@ export default function App() {
       <ChecksumDialog />
       <RefreshUrlDialog />
       <RenameDialog />
+      <PostActionDialog />
       <Toaster position="bottom-right" richColors closeButton dir={i18n.dir()} theme="system" />
     </TooltipProvider>
   );

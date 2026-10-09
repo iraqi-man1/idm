@@ -1,4 +1,4 @@
-import { ArrowDown, Gauge, Lock } from "lucide-react";
+import { ArrowDown, BatteryLow, Gauge, Lock } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { errorMessage } from "@/lib/api";
 import { formatSpeed } from "@/lib/format";
 import { useDownloads } from "@/stores/downloads";
+import { useQueues } from "@/stores/queues";
 import { useSettings } from "@/stores/settings";
 
 const LIMITS = [0, 256 * 1024, 512 * 1024, 1024 ** 2, 2 * 1024 ** 2, 5 * 1024 ** 2, 10 * 1024 ** 2];
@@ -17,6 +18,7 @@ export function StatusBar({ visibleCount }: { visibleCount: number }) {
   const settings = useSettings((s) => s.settings);
   const info = useSettings((s) => s.info);
   const save = useSettings((s) => s.save);
+  const hold = useQueues((s) => s.hold);
 
   const { active, speed } = useMemo(() => {
     const list = Object.values(progress);
@@ -41,6 +43,12 @@ export function StatusBar({ visibleCount }: { visibleCount: number }) {
         {t("statusbar.active", { count: active })} · {formatSpeed(speed)}
       </span>
       <div className="flex-1" />
+      {hold && (
+        <span className="flex items-center gap-1 text-warning" role="status">
+          <BatteryLow className="size-3.5" />
+          {t(hold === "low_battery" ? "queues.holdBattery" : "queues.holdMetered")}
+        </span>
+      )}
       {info && !info.secure_storage && (
         <span className="flex items-center gap-1 text-warning" title={t("settings.network.noSecureStorage")}>
           <Lock className="size-3.5" />

@@ -56,7 +56,11 @@ struct Inner {
     settings: RwLock<AppSettings>,
     proxy_password: RwLock<Option<String>>,
     records: Mutex<HashMap<DownloadId, Arc<Mutex<DownloadRecord>>>>,
+    /// Lock order: a record before `running` (`info_for` reads the live
+    /// state of a locked record). `starting` keeps `start` atomic without
+    /// holding `running` while it updates the record.
     running: Mutex<HashMap<DownloadId, Running>>,
+    starting: Mutex<()>,
     memory_secrets: Mutex<HashMap<DownloadId, DownloadSecrets>>,
     events: broadcast::Sender<EngineEvent>,
     global_limiter: Arc<RateLimiter>,
@@ -266,6 +270,7 @@ impl DownloadManager {
             proxy_password: RwLock::new(cfg.proxy_password),
             records: Mutex::new(HashMap::new()),
             running: Mutex::new(HashMap::new()),
+            starting: Mutex::new(()),
             memory_secrets: Mutex::new(HashMap::new()),
             events,
             reserved: Arc::new(Mutex::new(HashSet::new())),
@@ -735,11 +740,18 @@ impl DownloadManager {
             .get(&id)
             .cloned()
             .ok_or_else(|| EngineError::Other("unknown download".into()))?;
-        let mut running = self.inner.running.lock();
-        if running.contains_key(&id) {
+        let _starting = self.inner.starting.lock();
+        if self.inner.running.lock().contains_key(&id) {
             return Ok(());
         }
-        let (kind, speed_limit) = {
+        let media = if rec.lock().kind.is_media() {
+            Some(self.inner.media_runner.read().clone().ok_or_else(|| {
+                EngineError::Unsupported("media downloads are not available".into())
+            })?)
+        } else {
+            None
+        };
+        let speed_limit = {
             let mut r = rec.lock();
             if r.status == DownloadStatus::Completed {
                 return Ok(());
@@ -759,7 +771,7 @@ impl DownloadManager {
                 .reserved
                 .lock()
                 .insert(Path::new(&r.save_dir).join(&r.file_name));
-            (r.kind, r.speed_limit)
+            r.speed_limit
         };
         let secrets = self.inner.load_secrets(&rec.lock());
         let shared = Arc::new(TaskShared {
@@ -781,23 +793,15 @@ impl DownloadManager {
             reserved: self.inner.reserved.clone(),
             hooks: Arc::new(Hooks(Arc::downgrade(&self.inner))),
         };
-        let media = if kind.is_media() {
-            Some(self.inner.media_runner.read().clone().ok_or_else(|| {
-                EngineError::Unsupported("media downloads are not available".into())
-            })?)
-        } else {
-            None
-        };
         let inner = self.inner.clone();
         let sh2 = shared.clone();
-        running.insert(
+        self.inner.running.lock().insert(
             id,
             Running {
                 shared: shared.clone(),
                 handle: None,
             },
         );
-        drop(running);
         let handle = self.inner.rt.spawn(async move {
             let outcome = match media {
                 Some(m) => m.run(sh2.clone(), env).await,
@@ -1063,6 +1067,32 @@ impl DownloadManager {
             download: info.clone(),
         });
         Ok(info)
+    }
+
+    /// Move a download to another queue (keeps its state).
+    pub fn set_queue(&self, id: DownloadId, queue_id: &str) -> EngineResult<DownloadInfo> {
+        self.modify(id, |r| r.queue_id = Some(queue_id.to_string()))
+    }
+
+    /// Stop a running download and put it back in its queue, so queue
+    /// processing resumes it later (used when a schedule's stop time is
+    /// reached or a queue is stopped). Paused/failed downloads are left alone.
+    pub async fn requeue(&self, id: DownloadId) -> EngineResult<()> {
+        let was_running = self.is_running(id);
+        if let Some(h) = self.stop_task(id, StopReason::Pause) {
+            Self::wait(Some(h)).await;
+        }
+        let rec = self.record_handle(id)?;
+        let mut r = rec.lock();
+        let waiting = r.status == DownloadStatus::Queued;
+        if waiting || (was_running && r.status == DownloadStatus::Paused) {
+            r.status = DownloadStatus::Queued;
+            self.inner.db.save_download(&r)?;
+            let info = self.inner.info_for(&r);
+            drop(r);
+            self.inner.emit(EngineEvent::Updated { download: info });
+        }
+        Ok(())
     }
 
     /// Per-download speed limit (0 = unlimited). Applies immediately.
