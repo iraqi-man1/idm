@@ -209,7 +209,11 @@ function updateLock(lock, btbnTag) {
     }
   }
   fs.writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
-  console.log(changed ? `${changed} entries updated; review and commit the lock file.` : "lock file is up to date");
+  console.log(
+    changed
+      ? `${changed} entries updated; run \`node scripts/third-party-notices.mjs\`, then review and commit both files.`
+      : "lock file is up to date",
+  );
 }
 
 const args = process.argv.slice(2);

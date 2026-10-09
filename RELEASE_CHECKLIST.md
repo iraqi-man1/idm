@@ -32,7 +32,9 @@ refuses to bundle a file whose hash differs.
   `node scripts/prepare-release.mjs update-lock` with network access to the
   GitHub API. It pins the last build of the most recent completed month,
   refreshes every hash and verifies the downloads; review the diff (and the
-  upstream changes) and commit the lock file. Refresh at least once a year.
+  upstream changes), regenerate `THIRD_PARTY_NOTICES.md` (it names the
+  pinned build; CI fails while it is stale) and commit both files. Refresh
+  at least once a year.
 * To move to a new yt-dlp version or FFmpeg release branch, change the
   version, URLs and asset names in the lock file, then run `update-lock`.
 * macOS has no pinned FFmpeg source yet (the lock entries are `null`); a
