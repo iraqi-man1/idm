@@ -1,0 +1,33 @@
+[package]
+name = "velox-media"
+description = "Media downloads for Velox: HLS/DASH parsing and segment download, FFmpeg muxing, yt-dlp integration"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+velox-types = { workspace = true }
+velox-core = { workspace = true }
+velox-http = { workspace = true }
+velox-persistence = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+futures = { workspace = true }
+bytes = { workspace = true }
+url = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+parking_lot = { workspace = true }
+roxmltree = "0.21"
+aes = "0.8"
+cbc = "0.1"
+hex = { workspace = true }
+sha2 = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+velox-test-server = { workspace = true }
+tempfile = { workspace = true }

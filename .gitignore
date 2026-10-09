@@ -1,0 +1,43 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+
+# Tauri
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/target/
+# Sidecar binaries are fetched (and checksum-verified) by scripts/prepare-release.mjs
+apps/desktop/src-tauri/binaries/*
+!apps/desktop/src-tauri/binaries/.gitkeep
+resources/**/*.exe
+resources/**/ffmpeg
+resources/**/ffprobe
+resources/**/yt-dlp*
+!resources/**/*.md
+
+# Extension builds
+extensions/*/dist/
+extensions/*/*.zip
+extensions/**/*.pem
+
+# Signing material - never commit
+*.key
+*.p12
+*.pfx
+.tauri-signing*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
+
+# Python bytecode (E2E scripts)
+__pycache__/

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4338ca"/>
+      <stop offset="0.55" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="48" y="48" width="928" height="928" rx="216" fill="url(#bg)"/>
+  <rect x="48" y="48" width="928" height="928" rx="216" fill="url(#shine)"/>
+  <g fill="#ffffff" stroke="#ffffff" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M478 214 H586 V520 H714 L532 734 L350 520 H478 Z" stroke-width="36"/>
+    <line x1="196" y1="282" x2="398" y2="282" stroke-width="52" opacity="0.95"/>
+    <line x1="240" y1="372" x2="398" y2="372" stroke-width="52" opacity="0.7"/>
+    <line x1="284" y1="462" x2="398" y2="462" stroke-width="52" opacity="0.45"/>
+    <line x1="316" y1="830" x2="748" y2="830" stroke-width="64"/>
+  </g>
+</svg>

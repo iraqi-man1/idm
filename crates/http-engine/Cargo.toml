@@ -1,0 +1,24 @@
+[package]
+name = "velox-http"
+description = "HTTP(S) transport for the Velox download engine: probing, range requests, header parsing"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+velox-types = { workspace = true }
+reqwest = { workspace = true }
+rustls = { workspace = true }
+url = { workspace = true }
+percent-encoding = { workspace = true }
+mime_guess = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+bytes = { workspace = true }
+futures = { workspace = true }
+httpdate = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+velox-test-server = { workspace = true }

@@ -1,0 +1,13 @@
+[package]
+name = "velox-types"
+description = "Shared data types for Velox Download Manager (engine, desktop app, native messaging)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+ts-rs = { workspace = true }

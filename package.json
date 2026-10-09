@@ -1,0 +1,17 @@
+{
+  "name": "velox-download-manager",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter desktop tauri dev",
+    "build": "pnpm --filter desktop tauri build",
+    "build:extensions": "pnpm --filter extensions build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "bindings": "cargo test -p velox-types"
+  }
+}

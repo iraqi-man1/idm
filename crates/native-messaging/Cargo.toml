@@ -1,0 +1,30 @@
+[package]
+name = "velox-nm"
+description = "Native messaging host, browser registration and local IPC for Velox Download Manager"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "velox-nmh"
+path = "src/bin/velox-nmh.rs"
+
+[dependencies]
+velox-types = { workspace = true }
+tokio = { workspace = true, features = ["io-std"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+dirs = { workspace = true }
+rand = { workspace = true }
+hex = { workspace = true }
+parking_lot = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Pipes", "Win32_System_Threading"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+serde_json = { workspace = true }

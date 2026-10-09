@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body class="popup">
+    <header>
+      <img src="icons/icon-32.png" alt="" width="24" height="24" />
+      <div>
+        <strong data-i18n="extName"></strong>
+        <p id="status" class="status"></p>
+      </div>
+    </header>
+    <p id="fix" class="hint" hidden></p>
+    <section class="rows">
+      <label class="row"><span data-i18n="captureToggle"></span><input type="checkbox" id="capture" /></label>
+      <label class="row" id="site-row"><span data-i18n="siteToggle"></span><input type="checkbox" id="site" /></label>
+    </section>
+    <section>
+      <h3 data-i18n="mediaTitle"></h3>
+      <ul id="media" class="media"></ul>
+    </section>
+    <p class="hint" data-i18n="bypassHint"></p>
+    <footer>
+      <button id="open" class="primary" data-i18n="openApp"></button>
+      <button id="options" data-i18n="options"></button>
+    </footer>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "extensions",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:zip": "node build.mjs --zip",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.1.43",
+    "esbuild": "0.28.2",
+    "jsdom": "26.1.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}

@@ -1,0 +1,35 @@
+name: Refresh pinned tools
+
+# Re-pins FFmpeg/ffprobe to the last BtbN build of the most recent completed
+# month (kept upstream for two years), refreshes all SHA-256 values, and
+# proves the new pins download and verify. The updated lock file is printed
+# and attached to the run; review it and commit it.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lock:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Re-pin and refresh hashes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/prepare-release.mjs update-lock
+      - name: Changes
+        run: git diff -- resources/sidecars.lock.json
+      - name: Download and verify the Windows x64 tools
+        run: node scripts/prepare-release.mjs --target x86_64-pc-windows-msvc --skip-host --skip-extensions
+      - name: Download and verify the Linux x64 tools
+        run: node scripts/prepare-release.mjs --target x86_64-unknown-linux-gnu --skip-host --skip-extensions
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sidecars-lock
+          path: resources/sidecars.lock.json

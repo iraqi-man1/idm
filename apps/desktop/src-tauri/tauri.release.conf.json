@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "externalBin": [
+      "binaries/velox-nmh",
+      "binaries/ffmpeg",
+      "binaries/ffprobe",
+      "binaries/yt-dlp"
+    ],
+    "resources": {
+      "../../../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md",
+      "../../../extensions/chromium/dist/": "extensions/chromium/",
+      "../../../extensions/firefox/dist/": "extensions/firefox/",
+      "binaries/licenses/": "licenses/"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body class="options">
+    <main>
+      <header>
+        <img src="icons/icon-48.png" alt="" width="40" height="40" />
+        <div>
+          <h1 data-i18n="optionsTitle"></h1>
+          <p id="status" class="status"></p>
+        </div>
+      </header>
+      <p id="fix" class="hint" hidden></p>
+      <section class="rows">
+        <label class="row"><span data-i18n="captureToggle"></span><input type="checkbox" id="capture" /></label>
+      </section>
+      <section>
+        <h3 data-i18n="localExclusions"></h3>
+        <ul id="exclusions" class="list"></ul>
+      </section>
+      <p class="hint" data-i18n="appSettingsHint"></p>
+      <p class="hint" data-i18n="bypassHint"></p>
+      <section id="perm" hidden>
+        <p class="hint" data-i18n="hostPermission"></p>
+        <button id="grant" class="primary" data-i18n="grantPermission"></button>
+      </section>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>
