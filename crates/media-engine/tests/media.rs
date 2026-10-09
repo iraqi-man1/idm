@@ -981,6 +981,50 @@ async fn login_in_the_manifest_address_is_sent_and_stored_encrypted() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn login_for_another_origin_is_not_sent_to_the_manifest_host() {
+    // The user typed a protected address that redirected to a CDN: the
+    // manifest was found on another origin, which must not get the login.
+    let Some(env) = Env::new().await else { return };
+    let mgr = env.manager().await;
+    let mut m = env.media(
+        MediaSourceKind::Hls,
+        "hls/master.m3u8",
+        OutputContainer::Mp4,
+    );
+    m.format_id = Some("v0".into());
+    let id = mgr
+        .add(AddDownloadRequest {
+            url: "http://viewer:p4ss@private.invalid/live.m3u8".into(),
+            media: Some(m),
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .id;
+    assert!(mgr.get(id).unwrap().has_secrets);
+    let path = completed(&mgr, id).await;
+    verify(&env.tools, &path);
+    for f in [
+        "hls/master.m3u8",
+        "hls/v0/index.m3u8",
+        "hls/v0/seg000.ts",
+        "hls/a/index.m3u8",
+        "hls/a/seg000.ts",
+    ] {
+        let stats = env.server.static_stats(f);
+        assert!(
+            stats.requests.load(std::sync::atomic::Ordering::SeqCst) > 0,
+            "{f} fetched"
+        );
+        assert_eq!(
+            stats.authorized.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "{f} received the login"
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn hls_alternate_audio_track_is_used() {
     let Some(env) = Env::new().await else { return };
     let mgr = env.manager().await;

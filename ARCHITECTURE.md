@@ -275,7 +275,9 @@ address are moved into the encrypted secrets store.
   Secret Service). Without a keyring, secrets stay in memory only.
 * A login in an address (`user:pass@host`) is moved into those secrets when a
   download is added or its address is changed, including media manifest
-  addresses; media downloads send it only to the manifest's own origin.
+  addresses; an address that only names the stored user (`user@host`) keeps
+  the stored password. Media downloads send the login only when the manifest
+  is on the origin it was entered for, and only to that origin.
 * File names from servers, URLs and browsers are sanitized (no path
   components, no control or bidi-override characters, no reserved device
   names, length limited).

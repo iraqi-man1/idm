@@ -41,7 +41,7 @@ re-checked against the code and tests before the first pull request.
 | FTPS (implicit `ftps://`, explicit `ftpes://`) | 🟡 | implemented with OS certificate verification; no automated TLS test (needs a trusted certificate) |
 | SFTP (password / `~/.ssh` key login, multi-connection, resume) | 🟡 | password login, multi-connection and resume tested against the in-process SSH server and in E2E; `~/.ssh` key login implemented but untested |
 | SSH host key verification (known_hosts, trust on first use, changed-key refusal) | ✅ | |
-| Credentials in addresses moved to encrypted storage | ✅ | add, change-address and media manifest paths tested by scanning the database files (including the WAL) for the password |
+| Credentials in addresses moved to encrypted storage | ✅ | add, change-address and media manifest paths tested by scanning the database files (including the WAL) for the password; an address naming only the user keeps the stored password (tested) |
 
 ## Desktop app
 
@@ -83,7 +83,7 @@ re-checked against the code and tests before the first pull request.
 | Alt+click bypass | ✅ | E2E (synthetic Alt-click on Linux, see KNOWN_ISSUES) |
 | Context menus (link, image, media, all links) | 🟡 | manual |
 | Popup with connection status | ✅ | E2E |
-| Site exclusions, size/extension filters | 🟡 | capture decision (exclusion, extension, minimum size) unit-tested in the extension and the app; settings fields manual |
+| Site exclusions, size/extension filters | 🟡 | capture decision (exclusion, extension, minimum size) unit-tested in the extension; the app re-checks only site exclusions (unit-tested); settings fields manual |
 | Media detection (HLS / DASH / direct files) per tab | 🟡 | classifier unit-tested; per-tab request detection, badge and popup list not covered by automated tests |
 | Floating "Download This Video" button with quality menu | ✅ | E2E with real HLS |
 | Per-user host registration, repair, install instructions | 🟡 | Linux registration unit-tested in a fake home; the Windows registry path is never executed by a test (clean-machine gate pending); repair and instructions manual |
@@ -110,7 +110,7 @@ re-checked against the code and tests before the first pull request.
 | DRM detection and refusal | ✅ | engine test (SAMPLE-AES refused, nothing fetched); HLS/DASH/yt-dlp detection unit-tested |
 | Live streams | 🚫 | refused with a clear message |
 | Web pages via yt-dlp | ✅ | engine tests with yt-dlp's generic extractor (Linux and Windows CI); site-specific extractors depend on the bundled yt-dlp version |
-| Login in a manifest address | ✅ | moved to encrypted storage and sent only to the manifest's origin; engine test with a password-protected server |
+| Login in a manifest address | ✅ | moved to encrypted storage; sent only when the manifest is on the origin the login was entered for, and only to that origin; engine tests (protected server; login for another origin never sent) |
 | FFmpeg / yt-dlp bundled with the installer | 🟡 | pinned and checksum-verified; present in both installers (checked in CI); the pinned Windows binaries run the Windows CI media tests; no installed package has run them yet (clean-machine gate pending) |
 | Tool status in settings | ✅ | E2E |
 

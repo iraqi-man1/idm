@@ -96,6 +96,8 @@ pub struct ResourceStats {
     pub max_active: AtomicU32,
     pub bytes_sent: AtomicU64,
     pub rejected: AtomicU32,
+    /// Requests that carried an `Authorization` header.
+    pub authorized: AtomicU32,
 }
 
 #[derive(Default)]
@@ -349,6 +351,9 @@ async fn serve_static(
     let status = |s: StatusCode| Response::builder().status(s).body(Body::empty()).unwrap();
     if let Some(s) = state.forced_status.lock().get(&path).copied() {
         return status(StatusCode::from_u16(s).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR));
+    }
+    if headers.contains_key(header::AUTHORIZATION) {
+        stats.authorized.fetch_add(1, Ordering::SeqCst);
     }
     let login = state.static_login.lock().clone();
     if let Some(expected) = login {

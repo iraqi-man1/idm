@@ -104,7 +104,7 @@ impl RequestInfo {
     }
 }
 
-fn same_origin(a: &str, b: &str) -> bool {
+pub(crate) fn same_origin(a: &str, b: &str) -> bool {
     match (url::Url::parse(a), url::Url::parse(b)) {
         (Ok(a), Ok(b)) => a.origin() == b.origin(),
         _ => false,

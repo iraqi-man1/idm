@@ -61,8 +61,9 @@ of platform restrictions. Keep it honest and current.
   files left by a crash are deleted at the next start.
 * **Logins for web pages**: a user name and password in the address of a page
   handled by yt-dlp are stored encrypted but not passed to yt-dlp; such pages
-  need the browser's cookies instead. (HLS/DASH manifests do use them, for
-  the manifest's own server only.)
+  need the browser's cookies instead. (HLS/DASH downloads use them, but only
+  with the server they were entered for: a manifest the server redirected
+  to on another host gets no login.)
 
 ## Queues and power
 

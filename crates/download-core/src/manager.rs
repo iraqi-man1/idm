@@ -1098,8 +1098,17 @@ impl DownloadManager {
         }
         if let Some(login) = login {
             let mut secrets = self.inner.load_secrets(&r);
-            secrets.credentials = Some(login);
-            self.store_secrets(&mut r, secrets)?;
+            // "user@host" without a password only names the account: keep
+            // a stored password for that same user rather than blanking it.
+            let names_stored_user = login.password.is_empty()
+                && secrets
+                    .credentials
+                    .as_ref()
+                    .is_some_and(|c| c.username == login.username);
+            if !names_stored_user {
+                secrets.credentials = Some(login);
+                self.store_secrets(&mut r, secrets)?;
+            }
         }
         r.url = url.to_string();
         r.final_url = None;

@@ -51,7 +51,8 @@ impl MediaEngine {
         &self.tools
     }
 
-    /// Probe a media resource (used by the browser bridge).
+    /// Probe a media resource (used by the browser bridge). yt-dlp's cookie
+    /// file goes to the secret directory when one is set, else `work_dir`.
     pub async fn probe(
         &self,
         kind: MediaSourceKind,
@@ -59,7 +60,8 @@ impl MediaEngine {
         opts: &ClientOptions,
         work_dir: &Path,
     ) -> Result<MediaProbeResult, MediaError> {
-        crate::probe::probe(kind, info, opts, &self.tools, work_dir).await
+        let cookie_dir = self.secret_dir.as_deref().unwrap_or(work_dir);
+        crate::probe::probe(kind, info, opts, &self.tools, cookie_dir).await
     }
 }
 
@@ -174,7 +176,13 @@ fn request_info(sh: &TaskShared, env: &TaskEnv, url: &str) -> RequestInfo {
             .clone()
             .or_else(|| Some(env.client_opts.user_agent.clone())),
         headers,
-        credentials: env.secrets.credentials.clone(),
+        // The login belongs to the address the user entered; a manifest on
+        // another origin (e.g. a CDN the server redirected to) never gets it.
+        credentials: env
+            .secrets
+            .credentials
+            .clone()
+            .filter(|_| crate::same_origin(&r.url, url)),
     }
 }
 

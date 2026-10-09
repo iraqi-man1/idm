@@ -11,7 +11,8 @@ use velox_test_server::expected_content;
 use velox_test_server::ftp::{FtpOptions, FtpServer};
 use velox_test_server::sftp::SftpServer;
 use velox_types::{
-    AddDownloadRequest, DownloadId, DownloadInfo, DownloadStatus, ErrorKind, ProxyMode, StartMode,
+    AddDownloadRequest, Credentials, DownloadId, DownloadInfo, DownloadStatus, ErrorKind,
+    ProxyMode, StartMode,
 };
 
 struct Env {
@@ -313,6 +314,36 @@ async fn changing_the_address_moves_its_login_to_encrypted_storage() {
     let raw = database_bytes(&env);
     assert!(contains(&raw, b"moved.bin"), "the scan sees the record");
     assert!(!contains(&raw, b"s3cret"), "password stored in plain text");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_address_naming_only_the_user_keeps_the_stored_password() {
+    let env = Env::new();
+    let server = FtpServer::start(FtpOptions {
+        login: Some(("carol".into(), "s3cret".into())),
+        ..Default::default()
+    })
+    .await;
+    let mgr = env.manager().await;
+    let with_login = server.url(100_000, "named.bin");
+    let info = mgr
+        .add(AddDownloadRequest {
+            start: StartMode::Paused,
+            credentials: Some(Credentials {
+                username: "carol".into(),
+                password: "s3cret".into(),
+            }),
+            ..req(with_login.replace("carol:s3cret@", ""))
+        })
+        .await
+        .unwrap();
+    // The usual way to write an address for an account: user name only.
+    mgr.update_url(info.id, &with_login.replace("carol:s3cret@", "carol@"))
+        .unwrap();
+    mgr.start(info.id).unwrap();
+    let done = finished(&mgr, info.id).await;
+    assert_eq!(done.status, DownloadStatus::Completed, "{:?}", done.error);
+    assert_file(&env, "named.bin", server.seed_for("named.bin"), 100_000);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

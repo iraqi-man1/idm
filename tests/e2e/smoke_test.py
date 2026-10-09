@@ -350,10 +350,13 @@ def main():
         by_text(driver, "button", "Settings").click()
         wait_for(lambda: by_text(driver, "button", "Appearance"), what="settings").click()
         is_dark = lambda: driver.execute_script("return document.documentElement.classList.contains('dark')")  # noqa: E731
+        # Each switch must change the page (the default follows a light system).
+        by_text(driver, "button", "Dark").click()
+        wait_for(is_dark, what="dark theme applied")
         by_text(driver, "button", "Light").click()
         wait_for(lambda: not is_dark(), what="light theme applied")
         by_text(driver, "button", "Dark").click()
-        wait_for(is_dark, what="dark theme applied")
+        wait_for(is_dark, what="dark theme applied again")
         lang = driver.find_element(By.XPATH, "//button[@role='combobox']")
         lang.click()
         opt = wait_for(lambda: driver.find_elements(By.XPATH, "//div[@role='option'][contains(.,'العربية')]"), what="lang option")[0]

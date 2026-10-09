@@ -74,18 +74,32 @@ same for the yt-dlp tests.
   independent reviewers, and every disputed finding was re-checked by a
   skeptic. 41 corrections were upheld and applied (mostly ✅ → 🟡 where
   only parsing, a single variant or a manual run backed the claim, and notes
-  that said "E2E" for engine tests). Real defects it found, now fixed with
-  regression tests that fail on the old code:
+  that said "E2E" for engine tests). Real defects it found, now fixed:
   * changing a download's address stored `user:pass@` in plain text, and a
-    login in a media manifest address was kept in plain text (the media
-    engine now uses the stored login, for the manifest's origin only);
-  * yt-dlp's cookie file lived next to the downloads and survived a crash
-    (now in the per-user data directory, swept at startup);
-  * the database scans in the credential tests ignored the SQLite WAL;
-  * "Check for updates automatically" was stored but never read (now a
-    daily check that offers the update in a notification);
-  * `third-party-notices.mjs` could silently produce an empty npm section
-    (now an error; CI fails when the committed file is stale).
+    login in a media manifest address was kept in plain text. Logins now go
+    to the encrypted secrets; media downloads send them only when the
+    manifest is on the origin the login was entered for. Regression tests
+    that fail on the old code: `remote.rs` (address change, user-name-only
+    address), `media.rs` (protected server; login for another origin never
+    sent), `context_for` unit test.
+  * the database scans in the credential tests ignored the SQLite WAL
+    (fixed in those tests, which now also prove they see the record);
+  * yt-dlp's cookie file lived next to the downloads and survived a crash.
+    It now gets a unique name in the per-user data directory (downloads and
+    probes) and is swept at startup. Unique names and the sweep are
+    unit-tested; the directory wiring is not.
+  * "Check for updates automatically" was stored but never read. It is now
+    a daily check (failed checks retried hourly) that offers the update in
+    a notification; the checker logic is unit-tested, the React hook that
+    drives it is not.
+  * `third-party-notices.mjs` could silently produce an empty npm section.
+    That is now an error, and CI regenerates the file and fails when the
+    committed copy is stale; the script itself has no test.
+  A second, independent review of these fixes found two regressions in
+  them before they were merged (a `user@host` address blanked a stored
+  password; a login was sent to a CDN the server redirected to), a missing
+  retry after a failed update check, and an E2E assertion that could not
+  fail; all fixed with tests.
   Comparative "IDM-class/IDM-style" wording was removed from docs and
   comments; the non-affiliation statement remains.
 * MSRV corrected to 1.90 (Tauri 2.12, russh 0.64 and suppaftp 12 require
