@@ -8,6 +8,7 @@ import { PostActionDialog } from "@/components/dialogs/PostActionDialog";
 import { ChecksumDialog, DeleteDialog, PropertiesDialog, RefreshUrlDialog, RenameDialog } from "@/components/dialogs/SmallDialogs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAppearance } from "@/hooks/useAppearance";
+import { useAutoUpdateCheck } from "@/hooks/useAutoUpdateCheck";
 import { useEngineSync } from "@/hooks/useEngine";
 import { Sidebar } from "@/layouts/Sidebar";
 import { StatusBar } from "@/layouts/StatusBar";
@@ -46,6 +47,7 @@ function DownloadsView() {
 export default function App() {
   useEngineSync();
   useAppearance();
+  useAutoUpdateCheck();
   const { i18n } = useTranslation();
   const page = useUi((s) => s.page);
   const openAdd = useUi((s) => s.openAdd);

@@ -68,7 +68,13 @@ try {
     }
   }
 } catch (e) {
-  console.error(`warning: npm licenses unavailable: ${e.message}`);
+  // An empty npm section would ship without the UI's license texts.
+  console.error(`error: cannot list the npm licenses: ${e.message}`);
+  process.exit(1);
+}
+if (npm.length === 0) {
+  console.error("error: pnpm reported no npm packages for the desktop UI");
+  process.exit(1);
 }
 npm.sort((a, b) => a.name.localeCompare(b.name));
 

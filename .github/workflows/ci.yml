@@ -48,6 +48,11 @@ jobs:
         env:
           VELOX_REQUIRE_MEDIA_TESTS: "1"
           VELOX_REQUIRE_YTDLP_TESTS: "1"
+      - name: THIRD_PARTY_NOTICES.md is up to date
+        run: |
+          cargo fetch --locked
+          node scripts/third-party-notices.mjs
+          git diff --exit-code THIRD_PARTY_NOTICES.md
 
   frontend:
     name: UI and extensions — typecheck, tests, build

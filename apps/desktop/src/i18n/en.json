@@ -426,7 +426,8 @@
       "install": "Download and install",
       "installing": "Installing update…",
       "notConfigured": "This build has no update signing key configured; updates are distributed through new installers.",
-      "installed": "Installed version"
+      "installed": "Installed version",
+      "open": "Open update settings"
     },
     "about": {
       "version": "Version",

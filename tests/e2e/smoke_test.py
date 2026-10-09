@@ -349,7 +349,11 @@ def main():
         step("switch to Arabic (RTL) and dark theme")
         by_text(driver, "button", "Settings").click()
         wait_for(lambda: by_text(driver, "button", "Appearance"), what="settings").click()
+        is_dark = lambda: driver.execute_script("return document.documentElement.classList.contains('dark')")  # noqa: E731
+        by_text(driver, "button", "Light").click()
+        wait_for(lambda: not is_dark(), what="light theme applied")
         by_text(driver, "button", "Dark").click()
+        wait_for(is_dark, what="dark theme applied")
         lang = driver.find_element(By.XPATH, "//button[@role='combobox']")
         lang.click()
         opt = wait_for(lambda: driver.find_elements(By.XPATH, "//div[@role='option'][contains(.,'العربية')]"), what="lang option")[0]
