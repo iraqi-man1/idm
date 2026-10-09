@@ -23,8 +23,9 @@ case "$target" in
   *-linux-*)
     installer=$(find "$bundle/appimage" -name '*.AppImage' | head -1)
     [ -n "$installer" ] || { echo "no AppImage in $bundle/appimage" >&2; exit 1; }
+    installer=$(realpath "$installer")
     extract=$(mktemp -d)
-    (cd "$extract" && "$(realpath "$installer")" --appimage-extract >/dev/null)
+    (cd "$extract" && "$installer" --appimage-extract >/dev/null)
     (cd "$extract/squashfs-root" && find . -type f) >"$listing"
     required=(usr/bin/velox-desktop usr/bin/velox-nmh usr/bin/ffmpeg usr/bin/ffprobe usr/bin/yt-dlp
       extensions/chromium/manifest.json extensions/firefox/manifest.json THIRD_PARTY_NOTICES.md)

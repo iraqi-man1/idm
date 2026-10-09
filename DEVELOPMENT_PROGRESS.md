@@ -62,7 +62,12 @@ same for the yt-dlp tests.
   * Two E2E races (text read during a dialog's fade-in; column menu click)
     were fixed in the test.
   * A manual `Release` run built the Windows NSIS installer (13 min) and the
-    Linux AppImage on the first attempt.
+    Linux AppImage on the first attempt. The second run's content check
+    listed the Windows installer (311 MiB): `velox-desktop.exe`,
+    `velox-nmh.exe`, `ffmpeg.exe`, `ffprobe.exe`, `yt-dlp.exe`, both
+    extension manifests, `THIRD_PARTY_NOTICES.md`, the FFmpeg licenses and
+    `MicrosoftEdgeWebView2RuntimeInstaller.exe` (offline, 214 MB). That
+    installer has not been run on a clean machine yet.
 * MSRV corrected to 1.90 (Tauri 2.12, russh 0.64 and suppaftp 12 require
   it). README states plainly that no release exists yet.
 
