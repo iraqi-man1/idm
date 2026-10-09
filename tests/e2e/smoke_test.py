@@ -16,8 +16,10 @@ Usage:
 """
 
 import argparse
+import json
 import os
 import re
+import subprocess
 import sys
 import time
 
@@ -48,6 +50,21 @@ def by_text(driver, tag, text):
     return els[0] if els else None
 
 
+def set_value(driver, el, value):
+    """Set an input's value the way typing does (React sees an input event).
+
+    Used where WebKitWebDriver's synthetic keyboard is unreliable (after
+    earlier key actions it can drop the Shift state, typing ';' for ':')."""
+    driver.execute_script(
+        "const [el, v] = arguments;"
+        "const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;"
+        "Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, v);"
+        "el.dispatchEvent(new Event('input', {bubbles: true}));",
+        el,
+        value,
+    )
+
+
 def row_status(driver, name):
     rows = driver.find_elements(By.XPATH, f"//div[@data-index][.//span[normalize-space(.)='{name}']]")
     # textContent: WebKitWebDriver's visible-text algorithm skips truncated cells.
@@ -61,6 +78,7 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--downloads", required=True)
     ap.add_argument("--driver", default="http://127.0.0.1:4444")
+    ap.add_argument("--media", action="store_true", help="server has the media fixtures at /static")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
 
@@ -149,6 +167,52 @@ def main():
         path = os.path.join(args.downloads, "e2e-video.mp4")
         assert os.path.getsize(path) == size, f"size {os.path.getsize(path)} != {size}"
         assert not any(f.endswith(".vdpart") for f in os.listdir(args.downloads)), "partial removed"
+
+        if args.media:
+            step("HLS master playlist: quality picker in the add dialog")
+            by_text(driver, "button", "Add URL").click()
+            area = wait_for(lambda: driver.find_element(By.ID, "add-url"), what="url field")
+            set_value(driver, area, f"{args.server}/static/hls/master.m3u8")
+            wait_for(lambda: driver.find_elements(By.CSS_SELECTOR, "[data-testid='media-picker']"), timeout=30, what="media picker")
+            radio = wait_for(
+                lambda: driver.find_elements(By.XPATH, "//button[@role='radio'][.//b[normalize-space(.)='180p']]"), what="180p option"
+            )[0]
+            radio.click()
+            wait_for(lambda: radio.get_attribute("aria-checked") == "true", what="180p selected")
+            step("pick the Arabic audio track")
+            track = wait_for(lambda: driver.find_elements(By.XPATH, "//button[@role='combobox'][@aria-label='Audio track']"), what="audio track select")[0]
+            assert "English" in track.text, track.text
+            track.click()
+            opt = wait_for(lambda: driver.find_elements(By.XPATH, "//div[@role='option'][contains(.,'Arabic')]"), what="arabic track option")[0]
+            time.sleep(0.3)
+            ActionChains(driver).move_to_element(opt).perform()
+            ActionChains(driver).send_keys(Keys.ENTER).perform()
+            wait_for(lambda: "Arabic" in track.text, what="arabic track selected")
+            set_value(driver, driver.find_element(By.ID, "add-name"), "hls-clip")
+            time.sleep(0.3)
+            driver.save_screenshot(os.path.join(args.out, "05b-media-picker.png"))
+            by_text(driver, "button", "Start download").click()
+            step("HLS download is merged into one MP4")
+            wait_for(lambda: "Completed" in (row_status(driver, "hls-clip.mp4") or ""), timeout=90, what="hls completed")
+            probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,height,bit_rate", "-of", "json",
+                 os.path.join(args.downloads, "hls-clip.mp4")],
+                capture_output=True, text=True, check=True,
+            )
+            streams = json.loads(probe.stdout)["streams"]
+            assert [x["codec_type"] for x in streams] == ["video", "audio"], streams
+            assert streams[0]["height"] == 180, streams
+            # The Arabic rendition is encoded at 64 kb/s, the English one at 96 kb/s.
+            assert int(streams[1]["bit_rate"]) < 80_000, streams
+            assert not [f for f in os.listdir(args.downloads) if f.startswith(".velox-")], "work dir removed"
+
+            step("media tools status in settings")
+            by_text(driver, "button", "Settings").click()
+            wait_for(lambda: driver.find_elements(By.XPATH, "//button[normalize-space(.)='Media']"), what="settings nav")[0].click()
+            tool = wait_for(lambda: driver.find_elements(By.CSS_SELECTOR, "[data-testid='tool-FFmpeg']"), timeout=30, what="tool rows")[0]
+            assert "Not available" not in driver.execute_script("return arguments[0].textContent", tool)
+            driver.save_screenshot(os.path.join(args.out, "05c-media-tools.png"))
+            by_text(driver, "button", "All downloads").click()
 
         step("statistics page")
         by_text(driver, "button", "Statistics").click()

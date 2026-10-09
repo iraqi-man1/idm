@@ -5737,6 +5737,8 @@ dependencies = [
  "url",
  "uuid",
  "velox-core",
+ "velox-http",
+ "velox-media",
  "velox-nm",
  "velox-persistence",
  "velox-types",

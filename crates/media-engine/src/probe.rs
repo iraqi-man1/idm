@@ -133,12 +133,15 @@ async fn probe_hls(
                     }
                 }
             }
-            let audio_renditions: Vec<(usize, &hls::Rendition)> = m
+            let mut audio_renditions: Vec<(usize, &hls::Rendition)> = m
                 .renditions
                 .iter()
                 .enumerate()
                 .filter(|(_, r)| r.kind == "AUDIO" && r.uri.is_some())
                 .collect();
+            // Rendition bitrates are unknown: list the default one first so
+            // "best audio" pickers (which keep order on ties) choose it.
+            audio_renditions.sort_by_key(|(_, r)| !r.default);
             for (i, v) in m.variants.iter().enumerate() {
                 let separate_audio = v
                     .audio_group
@@ -183,8 +186,7 @@ async fn probe_hls(
                     width: None,
                     height: None,
                     fps: None,
-                    // Prefer the default rendition when bitrates are unknown.
-                    bitrate: Some(if r.default { 2 } else { 1 }),
+                    bitrate: None,
                     vcodec: None,
                     acodec: None,
                     filesize: None,

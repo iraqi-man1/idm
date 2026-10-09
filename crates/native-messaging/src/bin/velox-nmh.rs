@@ -181,18 +181,12 @@ async fn open_link(
                 let pending = pending.clone();
                 let mut reader = client.reader;
                 tokio::spawn(async move {
-                    loop {
-                        match read_frame(&mut reader, MAX_IPC, true).await {
-                            Ok(Some(raw)) => match serde_json::from_slice::<ExtResponse>(&raw) {
-                                Ok(resp) => {
-                                    pending.lock().await.remove(&resp.id);
-                                    send(&stdout, &resp).await;
-                                }
-                                // A frame this host does not understand (newer app):
-                                // skip it rather than dropping the connection.
-                                Err(_) => continue,
-                            },
-                            _ => break,
+                    while let Ok(Some(raw)) = read_frame(&mut reader, MAX_IPC, true).await {
+                        // A frame this host does not understand (newer app) is
+                        // skipped rather than dropping the connection.
+                        if let Ok(resp) = serde_json::from_slice::<ExtResponse>(&raw) {
+                            pending.lock().await.remove(&resp.id);
+                            send(&stdout, &resp).await;
                         }
                     }
                     alive2.store(false, std::sync::atomic::Ordering::SeqCst);

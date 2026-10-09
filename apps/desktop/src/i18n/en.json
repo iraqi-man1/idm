@@ -137,7 +137,21 @@
     "invalidUrl": "Enter a valid http(s), ftp or sftp address.",
     "probeFailed": "Could not read file information: {{error}}",
     "probeFailedHint": "You can still add the download; the server will be contacted again when it starts.",
-    "media": "This looks like a streaming playlist. It will be downloaded and merged into one video file."
+    "media": "This looks like a streaming playlist. It will be downloaded and merged into one video file.",
+    "mediaQuality": "Quality",
+    "mediaLoading": "Reading available qualities…",
+    "mediaPage": "This address is a web page. Velox can look for videos on it with its built-in extractor.",
+    "findVideos": "Find videos on this page",
+    "mediaSaveAs": "Save as",
+    "mediaSubtitles": "Subtitles",
+    "mediaEmbed": "Embed subtitles in the video",
+    "mediaDrm": "This media is protected by DRM and cannot be downloaded.",
+    "mediaLive": "This is a live stream; it cannot be downloaded to completion.",
+    "mediaNone": "No downloadable formats were found.",
+    "mediaFailed": "Could not read the media formats: {{error}}",
+    "audioOnly": "Audio only",
+    "keepOriginal": "Keep original",
+    "mediaAudioTrack": "Audio track"
   },
   "batch": {
     "title": "Batch import",
@@ -379,7 +393,12 @@
       "subtitleLangsHint": "Language codes separated by commas, e.g. en, ar",
       "embedSubtitles": "Embed subtitles in the video file",
       "segmentConcurrency": "Parallel stream segments",
-      "tools": "Bundled tools"
+      "tools": "Bundled tools",
+      "toolsHint": "FFmpeg merges streams and converts audio; yt-dlp finds videos on web pages. They are installed with Velox.",
+      "toolBundled": "Bundled",
+      "toolSystem": "System copy (development build)",
+      "toolMissing": "Not available",
+      "toolsRefresh": "Check again"
     },
     "appearance": {
       "theme": "Theme",

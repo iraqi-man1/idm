@@ -13,10 +13,13 @@ import type { ChecksumResult } from "@/bindings/ChecksumResult";
 import type { DownloadInfo } from "@/bindings/DownloadInfo";
 import type { EngineEvent } from "@/bindings/EngineEvent";
 import type { LogLine } from "@/bindings/LogLine";
+import type { MediaProbeResult } from "@/bindings/MediaProbeResult";
+import type { MediaSourceKind } from "@/bindings/MediaSourceKind";
 import type { PendingCapture } from "@/bindings/PendingCapture";
 import type { ProgressSnapshot } from "@/bindings/ProgressSnapshot";
 import type { StartMode } from "@/bindings/StartMode";
 import type { StatsSummary } from "@/bindings/StatsSummary";
+import type { ToolStatus } from "@/bindings/ToolStatus";
 import type { UrlInfo } from "@/bindings/UrlInfo";
 
 /** Error object returned by every command (see src-tauri/src/error.rs). */
@@ -80,6 +83,9 @@ export const api = {
   probeCapture: (id: string) => invoke<UrlInfo>("probe_capture", { id }),
   resolveCapture: (id: string, request: AddDownloadRequest | null) =>
     invoke<DownloadInfo | null>("resolve_capture", { id, request }),
+  mediaTools: () => invoke<ToolStatus[]>("get_media_tools"),
+  probeMedia: (url: string, kind: MediaSourceKind, referer: string | null = null, cookies: string | null = null) =>
+    invoke<MediaProbeResult>("probe_media", { url, kind, referer, cookies }),
   quit: () => invoke<void>("quit_app"),
 };
 

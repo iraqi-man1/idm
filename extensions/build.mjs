@@ -115,7 +115,10 @@ for (const target of targets) {
     minify: true,
     sourcemap: false,
     legalComments: "none",
-    alias: { "@bindings": path.join(root, "../apps/desktop/src/bindings") },
+    alias: {
+      "@bindings": path.join(root, "../apps/desktop/src/bindings"),
+      "@shared": path.join(root, "../apps/desktop/src/shared"),
+    },
     define: { "process.env.NODE_ENV": '"production"' },
     logLevel: "warning",
   });

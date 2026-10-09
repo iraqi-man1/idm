@@ -66,7 +66,7 @@ fn fixtures(t: &Tools) -> &'static Path {
         let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("media-fixtures");
         let _ = std::fs::remove_dir_all(&dir);
         let p = |s: &str| dir.join(s).to_string_lossy().to_string();
-        for d in ["hls/v0", "hls/v1", "hls/a", "hls/sub", "enc", "fmp4", "dash", "dash1", "drm"] {
+        for d in ["hls/v0", "hls/v1", "hls/a", "hls/a2", "hls/sub", "enc", "fmp4", "dash", "dash1", "drm"] {
             std::fs::create_dir_all(dir.join(d)).unwrap();
         }
         // 6 s of video (1 s GOP) and a sine tone.
@@ -98,6 +98,15 @@ fn fixtures(t: &Tools) -> &'static Path {
         let idx = Box::leak(p("hls/a/index.m3u8").into_boxed_str());
         a.extend(["-hls_segment_filename", seg, idx]);
         ffmpeg(t, &a);
+        // A second (Arabic) audio rendition with a different tone.
+        ffmpeg(
+            t,
+            &[
+                "-f", "lavfi", "-i", "sine=frequency=880:sample_rate=48000", "-t", "6", "-c:a", "aac", "-b:a", "64k",
+                "-f", "hls", "-hls_time", "1", "-hls_playlist_type", "vod",
+                "-hls_segment_filename", &p("hls/a2/seg%03d.ts"), &p("hls/a2/index.m3u8"),
+            ],
+        );
         std::fs::write(dir.join("hls/sub/en.vtt"), SUB_VTT).unwrap();
         std::fs::write(
             dir.join("hls/sub/en.m3u8"),
@@ -109,6 +118,7 @@ fn fixtures(t: &Tools) -> &'static Path {
             concat!(
                 "#EXTM3U\n#EXT-X-VERSION:4\n",
                 "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"aud\",NAME=\"English\",LANGUAGE=\"en\",DEFAULT=YES,AUTOSELECT=YES,URI=\"a/index.m3u8\"\n",
+                "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"aud\",NAME=\"Arabic\",LANGUAGE=\"ar\",DEFAULT=NO,AUTOSELECT=YES,URI=\"a2/index.m3u8\"\n",
                 "#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID=\"subs\",NAME=\"English\",LANGUAGE=\"en\",DEFAULT=NO,AUTOSELECT=YES,URI=\"sub/en.m3u8\"\n",
                 "#EXT-X-STREAM-INF:BANDWIDTH=400000,RESOLUTION=320x180,CODECS=\"avc1.42c01e,mp4a.40.2\",AUDIO=\"aud\",SUBTITLES=\"subs\"\n",
                 "v0/index.m3u8\n",
@@ -416,7 +426,8 @@ async fn probe_hls_master_lists_variants_audio_and_subtitles() {
         .await
         .unwrap();
     let ids: Vec<&str> = r.formats.iter().map(|f| f.id.as_str()).collect();
-    assert_eq!(ids, ["v0", "v1", "a0"]);
+    assert_eq!(ids, ["v0", "v1", "a0", "a1"]);
+    assert_eq!(r.formats[3].language.as_deref(), Some("ar"));
     assert_eq!(r.formats[1].height, Some(360));
     assert!(
         r.formats[1].has_video && !r.formats[1].has_audio,
@@ -895,4 +906,44 @@ async fn ytdlp_download_of_a_page_with_a_video() {
             .load(std::sync::atomic::Ordering::SeqCst)
             >= 1
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn untitled_manifest_is_named_after_the_playlist_without_its_extension() {
+    let Some(env) = Env::new().await else { return };
+    let mgr = env.manager().await;
+    let mut m = env.media(
+        MediaSourceKind::Dash,
+        "dash/manifest.mpd",
+        OutputContainer::Mkv,
+    );
+    m.title = None;
+    let id = env.add(&mgr, m, None).await;
+    let path = completed(&mgr, id).await;
+    assert_eq!(path.file_name().unwrap(), "manifest.mkv");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn hls_alternate_audio_track_is_used() {
+    let Some(env) = Env::new().await else { return };
+    let mgr = env.manager().await;
+    let mut m = env.media(
+        MediaSourceKind::Hls,
+        "hls/master.m3u8",
+        OutputContainer::Mkv,
+    );
+    m.format_id = Some("v0".into());
+    m.audio_format_id = Some("a1".into());
+    let id = env.add(&mgr, m, None).await;
+    let path = completed(&mgr, id).await;
+    let p = verify(&env.tools, &path);
+    assert_eq!(p.kinds(), ["video", "audio"]);
+    let count = |f: &str| {
+        env.server
+            .static_stats(f)
+            .requests
+            .load(std::sync::atomic::Ordering::SeqCst)
+    };
+    assert!(count("hls/a2/seg000.ts") >= 1, "Arabic track downloaded");
+    assert_eq!(count("hls/a/seg000.ts"), 0, "default track not downloaded");
 }

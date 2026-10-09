@@ -27,3 +27,25 @@ of platform restrictions. Keep it honest and current.
   `encnclpojnlecaheiiibdkkgiapnhocl` from the public key in the manifest) and
   Firefox needs a temporary add-on or an AMO-signed build. Store IDs must be
   added to `CHROMIUM_STORE_EXTENSION_IDS` (crates/native-messaging) when known.
+
+## Media
+
+* **Live streams** (HLS without `EXT-X-ENDLIST`, dynamic DASH) are refused:
+  they cannot be downloaded to completion.
+* **DASH subtitle tracks** are listed by the probe but not downloaded yet
+  (HLS WebVTT subtitles are supported).
+* **Segment downloads use one request per segment**, several segments in
+  parallel (Settings → Media → Parallel stream segments). The progress
+  window's per-connection view therefore shows a single stream connection for
+  media downloads; segment-level progress is shown as "Segments n/m".
+* **Pausing a media download** keeps every finished segment; segments that
+  were in flight are fetched again on resume (each is small).
+* **The in-page quality menu** offers the best audio track with each video
+  quality; choosing another audio language is possible in the app's Add
+  Download dialog.
+* **Site extractors** come from the yt-dlp version bundled with the app. Sites
+  change often; extractor fixes arrive with app updates. Velox never
+  downloads or replaces tool binaries on its own.
+* **Bundled tools**: until the Phase 7 packaging work lands, development
+  builds use FFmpeg/yt-dlp from `PATH` or `VELOX_FFMPEG`/`VELOX_YTDLP`.
+  Release builds use only the copies shipped with the installer.

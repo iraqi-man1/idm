@@ -188,6 +188,11 @@ pub fn run() {
                 }))
                 .map_err(|e| format!("cannot start the download engine: {e}"))?;
 
+            // The media runner must be in place before media downloads resume.
+            let media = media_bridge::Media::new(&data_dir);
+            manager.set_media_runner(media.engine.clone());
+            app.manage(media);
+
             for id in &interrupted {
                 if let Err(e) = manager.start(*id) {
                     tracing::warn!(%id, error = %e, "could not resume interrupted download");
@@ -274,6 +279,8 @@ pub fn run() {
             integration::commands::probe_capture,
             integration::commands::resolve_capture,
             integration::commands::open_extension_folder,
+            media_bridge::get_media_tools,
+            media_bridge::probe_media,
         ])
         .build(context)
         .expect("error while building the application");

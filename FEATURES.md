@@ -1,7 +1,11 @@
 # Features
 
-Status legend: ✅ implemented and tested · 🟡 implemented, partially tested or
-manual-test only · ⏳ not yet implemented · 🚫 not supported (see KNOWN_ISSUES)
+Status legend: ✅ implemented and covered by automated tests · 🟡 implemented,
+partially tested or manual-test only · ⏳ not yet implemented · 🚫 not
+supported (see KNOWN_ISSUES)
+
+"E2E" means the real application (or browser + extension + native host +
+application) was driven in an automated test; see `DEVELOPMENT_PROGRESS.md`.
 
 ## Download engine
 
@@ -19,7 +23,7 @@ manual-test only · ⏳ not yet implemented · 🚫 not supported (see KNOWN_ISS
 | Unicode file names, sanitization | ✅ | |
 | Large files (> 4 GiB) | ✅ | opt-in test |
 | Dynamic segmented downloading (1–32 connections) | ✅ | |
-| Adaptive connection count | 🟡 | ramp/plateau logic implemented; server-limit detection tested |
+| Adaptive connection count | 🟡 | ramp/plateau logic implemented; server-limit detection tested; ramp seen in E2E |
 | Range support detection, single-connection fallback | ✅ | |
 | Direct random-access writes, no merge | ✅ | sparse files on Windows |
 | Pause / resume / cancel / restart / retry | ✅ | |
@@ -31,6 +35,69 @@ manual-test only · ⏳ not yet implemented · 🚫 not supported (see KNOWN_ISS
 | Checksum verification (MD5/SHA-1/SHA-256/SHA-512) | ✅ | |
 | FTP / SFTP | ⏳ | Phase 6 |
 
-## Desktop app, browser integration, media, scheduler
+## Desktop app
 
-⏳ Phases 3–7 (see DEVELOPMENT_PLAN.md).
+| Feature | Status | Notes |
+|---|---|---|
+| Sidebar: status filters and categories | ✅ | E2E |
+| Download table: columns, sorting, column chooser | ✅ | E2E (column chooser) |
+| Toolbar and context-menu actions | 🟡 | pause/resume E2E; others call tested engine commands |
+| Add URL dialog with probing (size, resume, type, duplicates) | ✅ | E2E |
+| Advanced add options (referrer, auth, cookies, checksum, speed limit) | 🟡 | engine-tested; dialog fields manual |
+| Batch import / "download all links" | 🟡 | manual |
+| Detailed progress window (connections, segment map, speed graph) | ✅ | E2E, real per-connection data |
+| Statistics page | 🟡 | renders in E2E; numbers from SQLite counters |
+| Settings (general, downloads, network, browser, media, appearance, power, updates) | 🟡 | media + appearance in E2E |
+| Light / dark / system theme | ✅ | E2E (dark) |
+| English and Arabic (RTL) | ✅ | E2E; translation key parity unit test |
+| Tray menu (pause/resume all, speed limit, quit) | 🟡 | manual |
+| Completion/failure notifications | 🟡 | manual |
+| Single instance, URL arguments, start in tray | 🟡 | launch-argument parsing unit-tested |
+| Start with the system | 🟡 | autostart plugin; manual |
+| Clipboard monitoring | ⏳ | Phase 6 (the Add dialog already pre-fills a URL from the clipboard) |
+| Queues and scheduler, post-completion shutdown/sleep | ⏳ | Phase 6 |
+| Signed auto-update | 🟡 | UI + plugin wired; signing keys and release feed in Phase 7 |
+
+## Browser integration
+
+| Feature | Status | Notes |
+|---|---|---|
+| Native messaging host with origin allow-list and schema validation | ✅ | host E2E tests |
+| Authenticated local IPC (named pipe / Unix socket + token) | ✅ | |
+| Chrome / Chromium extension (MV3) | ✅ | E2E in Chromium |
+| Edge / Brave / Opera | 🟡 | same Chromium build; host registration paths implemented, not E2E-tested |
+| Firefox extension (MV3) | 🟡 | built and unit-tested; no Firefox E2E yet |
+| Download capture with browser download cancelled | ✅ | E2E |
+| "Download file info" capture dialog | ✅ | E2E |
+| Alt+click bypass | ✅ | E2E (synthetic Alt-click on Linux, see KNOWN_ISSUES) |
+| Context menus (link, image, media, all links) | 🟡 | manual |
+| Popup with connection status | ✅ | E2E |
+| Site exclusions, size/extension filters | 🟡 | exclusion matching unit-tested |
+| Media detection (HLS / DASH / direct files) per tab | ✅ | classifier unit tests; used in E2E |
+| Floating "Download This Video" button with quality menu | ✅ | E2E with real HLS |
+| Per-user host registration, repair, install instructions | 🟡 | Linux manifest paths exercised; Windows registry path runs in CI/clean-machine test |
+| Silent extension installation | 🚫 | not allowed by browsers (KNOWN_ISSUES) |
+
+## Media
+
+| Feature | Status | Notes |
+|---|---|---|
+| HLS master / media playlists | ✅ | E2E with FFmpeg-generated streams |
+| HLS separate audio renditions, alternate audio tracks | ✅ | E2E (app picker + engine) |
+| HLS AES-128 (identity key format) | ✅ | E2E |
+| HLS fMP4 (`EXT-X-MAP`) and byte ranges | ✅ | E2E (fMP4); byte ranges unit-tested |
+| DASH SegmentTemplate / SegmentTimeline | ✅ | E2E |
+| DASH SegmentList with byte ranges | ✅ | E2E |
+| DASH single-file (SegmentBase) representations | 🟡 | parser unit test |
+| Quality selection, preferred maximum height | ✅ | E2E |
+| Subtitles: embed (MP4/MKV) or save as .vtt | ✅ | E2E (HLS WebVTT) |
+| DASH subtitle tracks | ⏳ | listed by the probe, not downloaded yet |
+| Output MP4 / MKV / original container | ✅ | E2E |
+| Audio extraction MP3 / M4A | ✅ / 🟡 | MP3 E2E; M4A arguments unit-tested |
+| Resume after pause / restart (finished segments kept) | ✅ | E2E |
+| Expired segment URLs reported as expired link | ✅ | E2E |
+| DRM detection and refusal | ✅ | E2E (SAMPLE-AES); DASH ContentProtection unit-tested |
+| Live streams | 🚫 | refused with a clear message |
+| Web pages via yt-dlp | ✅ | E2E with yt-dlp's generic extractor; site-specific extractors depend on the bundled yt-dlp version |
+| FFmpeg / yt-dlp bundled with the installer | ⏳ | Phase 7 (sidecars); dev builds may use system copies |
+| Tool status in settings | ✅ | E2E |

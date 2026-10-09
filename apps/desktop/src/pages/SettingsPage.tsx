@@ -24,6 +24,7 @@ import { api, errorMessage } from "@/lib/api";
 import { formatBytes, parseSize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { BrowserSection } from "@/pages/settings/BrowserSection";
+import { MediaTools } from "@/pages/settings/MediaTools";
 import { UpdatesSection } from "@/pages/settings/UpdatesSection";
 import { useSettings } from "@/stores/settings";
 import { useUi } from "@/stores/ui";
@@ -378,6 +379,7 @@ function MediaSettings({ s }: { s: AppSettings }) {
           <NumberInput value={m.segment_concurrency} min={1} max={16} onCommit={(v) => set("segment_concurrency", v)} />
         </Field>
       </Section>
+      <MediaTools />
     </div>
   );
 }

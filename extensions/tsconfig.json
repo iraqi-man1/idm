@@ -12,7 +12,10 @@
     "resolveJsonModule": true,
     "types": ["chrome"],
     "baseUrl": ".",
-    "paths": { "@bindings/*": ["../apps/desktop/src/bindings/*"] }
+    "paths": {
+      "@bindings/*": ["../apps/desktop/src/bindings/*"],
+      "@shared/*": ["../apps/desktop/src/shared/*"]
+    }
   },
-  "include": ["shared/src", "build.mjs"]
+  "include": ["shared/src", "build.mjs", "vitest.config.mjs"]
 }

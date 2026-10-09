@@ -57,7 +57,7 @@ const CSS = `
 :host { all: initial; }
 .wrap { position: fixed; top: 0; left: 0; z-index: 2147483647; pointer-events: none;
   font: 13px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Arabic", sans-serif; }
-.btn { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+.btn { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap;
   padding: 6px 12px 6px 9px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px;
   background: rgba(17, 24, 39, .88); color: #fff; font: inherit; font-weight: 600;
   box-shadow: 0 6px 20px rgba(0,0,0,.35); backdrop-filter: blur(6px);

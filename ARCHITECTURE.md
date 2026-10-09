@@ -134,6 +134,79 @@ the commands used by the UI and the browser bridge (add, start, pause,
 cancel, restart, remove, rename, move, verify checksum, refresh address,
 per-download and global speed limits).
 
+## Desktop app (apps/desktop)
+
+* `src-tauri/src/lib.rs` opens the database, loads the master key from the OS
+  keyring, opens the `DownloadManager`, registers the media runner, resumes
+  interrupted downloads, starts the browser bridge and the tray. A second
+  launch (single-instance plugin) forwards its URL arguments; `--background`
+  starts hidden in the tray (used by autostart and the native host).
+* Commands (`commands/*.rs`, `integration/commands.rs`, `media_bridge.rs`) are
+  thin wrappers over the manager; errors cross the boundary as
+  `{ code, message }`. Engine events are forwarded as `engine://event`; a
+  500 ms progress event carries per-segment data for the progress window.
+* The React UI (Vite, Tailwind, Radix-based components, Zustand stores,
+  i18next with English/Arabic and RTL) never computes progress itself: every
+  number shown comes from engine events. Extra windows use hash routes:
+  `#/progress/<id>` (live connections, segment map, speed graph) and
+  `#/capture/<id>` (download offered by the browser).
+
+## Browser integration
+
+```
+extension (MV3) ⇄ stdio framing ⇄ velox-nmh ⇄ authenticated IPC ⇄ desktop app
+```
+
+* `velox-nmh` is launched by the browser. It checks the caller's origin
+  against the allow-list, validates every message (`ExtMessage::validate`:
+  schema with `deny_unknown_fields`, URL scheme allow-list, size limits,
+  CR/LF checks), and forwards it to the app. If the app is not running it is
+  started with `--background` (detached from the browser's job object on
+  Windows).
+* The app's endpoint is a named pipe `\\.\pipe\velox-dm-<random>` (remote
+  clients rejected, server PID verified by the client) or a Unix socket in the
+  data directory (mode 0600). `nm-endpoint.json` holds the name and a random
+  token that the host must present in its handshake.
+* The extension captures downloads (`downloads.onDeterminingFilename` on
+  Chromium; pause → hand off → cancel/erase on Firefox), offers context
+  menus, detects media requests per tab (`webRequest`), and draws the floating
+  "Download This Video" button in a closed shadow root over `<video>`
+  elements. The button's quality menu is filled by the app's media probe.
+* Quality options (`apps/desktop/src/shared/mediaOptions.ts`) are shared by
+  the in-page menu and the app's Add Download dialog.
+
+## Media engine (velox-media)
+
+`MediaEngine` implements the manager's `MediaRunner` for HLS, DASH and
+extractor (`Page`) downloads and answers probes.
+
+* **Parsing.** `hls.rs` (master/media playlists, byte ranges, `EXT-X-MAP`,
+  keys) and `dash.rs` (BaseURL resolution, SegmentTemplate with
+  `$Number$`/`$Time$`/SegmentTimeline, SegmentList with byte ranges, single
+  files). `SAMPLE-AES`, key formats other than `identity`, session keys and
+  DASH `ContentProtection` mark the media as DRM-protected; such media is
+  never downloaded. Live playlists are refused.
+* **Planning.** A selection (`MediaRequest`) picks a variant/representation
+  (explicit id, or the best within the preferred maximum height), the audio
+  rendition (explicit or the variant's default) and subtitle tracks.
+* **Segments.** `segments.rs` downloads up to `segment_concurrency` segments
+  in parallel through the global and per-download rate limiters. Each segment
+  is written to `<save_dir>/.velox-<id>/<track>/<n>.seg`, fsynced and renamed
+  into place, so pause, crash or restart resumes by skipping finished
+  segments. AES-128 segments are decrypted (key fetched once per URI, IV from
+  the playlist or the media sequence number).
+* **Muxing.** `mux.rs` runs FFmpeg with an argument vector: stream copy into
+  MP4/MKV (audio re-encoded to AAC only if the container cannot hold the
+  source codec), audio extraction to M4A/MP3, subtitles embedded (mov_text in
+  MP4) or saved as `<name>.<lang>.vtt`.
+* **Extractor.** `ytdlp.rs` runs yt-dlp for web pages (`-J` probe, download
+  with a machine-readable progress template); browser cookies are passed in a
+  temporary owner-only cookie file that is deleted afterwards.
+* **Tools.** Release builds only use FFmpeg/ffprobe/yt-dlp shipped next to the
+  executable (Tauri sidecars). Debug builds may also use `VELOX_FFMPEG`,
+  `VELOX_FFPROBE`, `VELOX_YTDLP` or `PATH`; Settings → Media shows which copy
+  is in use.
+
 ## Security
 
 * TLS: rustls with the operating system trust store (platform verifier); no

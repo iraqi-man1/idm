@@ -40,11 +40,19 @@ Requirements: Rust (stable, ≥ 1.85), Node.js 22, pnpm 10, and the
 
 ```bash
 pnpm install                     # JS dependencies (desktop UI + extensions)
-cargo test --workspace           # engine, persistence, protocol tests
+cargo test --workspace           # engine, media, persistence, protocol tests
 pnpm --filter desktop tauri dev  # run the desktop app
 pnpm --filter extensions build   # build browser extensions into extensions/*/dist
-cargo run -p velox-test-server -- --port 8787   # local test server
+cargo run -p velox-test-server -- --port 8787 [--static DIR]   # local test server
 ```
+
+Media tests generate real HLS/DASH streams with FFmpeg, so `ffmpeg` and
+`ffprobe` must be on `PATH` (they are skipped otherwise; set
+`VELOX_REQUIRE_MEDIA_TESTS=1` to make that an error). Debug builds of the app
+also find FFmpeg and yt-dlp on `PATH` or through `VELOX_FFMPEG` /
+`VELOX_YTDLP`; release builds only use the copies bundled with the app.
+End-to-end tests of the real app and browser are in `tests/e2e/` (see
+`DEVELOPMENT_PROGRESS.md`).
 
 Documentation:
 

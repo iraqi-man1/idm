@@ -335,6 +335,11 @@ impl DownloadManager {
 
     // ----- settings -------------------------------------------------------
 
+    /// HTTP client options derived from the current settings.
+    pub fn client_options(&self) -> ClientOptions {
+        self.inner.client_options()
+    }
+
     pub fn settings(&self) -> AppSettings {
         self.inner.settings.read().clone()
     }
@@ -565,6 +570,14 @@ impl DownloadManager {
             .unwrap_or_else(|| "download".into());
         let mut file_name = naming::sanitize_file_name(&raw_name);
         if kind.is_media() {
+            // "master.m3u8" / "manifest.mpd" name the playlist, not the video.
+            if let (stem, Some(ext)) = naming::split_ext(&file_name) {
+                if ["m3u8", "m3u", "mpd"].contains(&ext.to_ascii_lowercase().as_str())
+                    && !stem.is_empty()
+                {
+                    file_name = stem.to_string();
+                }
+            }
             if let Some(ext) = req.media.as_ref().and_then(|m| m.container.extension()) {
                 if naming::split_ext(&file_name)
                     .1
@@ -661,7 +674,13 @@ impl DownloadManager {
             expected: c.expected.trim().to_ascii_lowercase(),
             ..c
         });
-        r.media = req.media.clone();
+        r.media = req.media.clone().filter(|_| kind.is_media()).map(|mut m| {
+            // Without an explicit rendition, honour the preferred quality.
+            if m.format_id.is_none() && m.max_height.is_none() {
+                m.max_height = settings.media.preferred_quality.max_height();
+            }
+            m
+        });
         r.conflict = req.conflict.unwrap_or(settings.general.conflict_policy);
         r.name_locked = name_locked || kind.is_media();
         r.status = match req.start {

@@ -10,6 +10,9 @@ messaging host)  ->  authenticated IPC  ->  Velox desktop app.
 * A link click in the browser must be taken over: the app shows its
   "Download file info" dialog, the test clicks "Start download", the file is
   downloaded by Velox, and the browser's own download is cancelled.
+* With --media: the floating "Download This Video" button over an HLS video
+  lists the qualities probed by the app; picking one makes Velox download
+  and merge the stream (verified with ffprobe).
 """
 
 import argparse
@@ -18,6 +21,7 @@ import os
 import subprocess
 import sys
 import time
+import urllib.parse
 import urllib.request
 
 from playwright.sync_api import sync_playwright
@@ -42,6 +46,44 @@ def wait_for(fn, timeout=30.0, interval=0.25, what="condition"):
     raise TimeoutError(f"timed out waiting for {what} (last error: {last!r})")
 
 
+def shadow_elements(page, tag, cls):
+    """Elements inside the extension's *closed* shadow roots.
+
+    Page scripts and Playwright selectors cannot enter closed shadow roots;
+    the DevTools protocol can (DOM.getDocument with pierce). Returns text and
+    viewport centre of every <tag class="... cls ..."> so the test can click
+    it with the mouse like a user."""
+    cdp = page.context.new_cdp_session(page)
+    try:
+        doc = cdp.send("DOM.getDocument", {"depth": -1, "pierce": True})
+        found = []
+
+        def text(n):
+            if n.get("nodeType") == 3:
+                return n.get("nodeValue", "")
+            return "".join(text(c) for c in n.get("children") or [])
+
+        def walk(n):
+            a = n.get("attributes") or []
+            attrs = dict(zip(a[0::2], a[1::2]))
+            if n.get("nodeName") == tag and cls in attrs.get("class", "").split():
+                found.append((n, attrs.get("class", "")))
+            for c in (n.get("children") or []) + (n.get("shadowRoots") or []):
+                walk(c)
+
+        walk(doc["root"])
+        out = []
+        for n, klass in found:
+            try:
+                q = cdp.send("DOM.getContentQuads", {"nodeId": n["nodeId"]})["quads"][0]
+            except Exception:  # noqa: BLE001 - not rendered
+                continue
+            out.append({"text": text(n), "class": klass, "x": sum(q[0::2]) / 4, "y": sum(q[1::2]) / 4})
+        return out
+    finally:
+        cdp.detach()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--app", required=True)
@@ -54,6 +96,7 @@ def main():
     ap.add_argument("--profile", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--driver", default="http://127.0.0.1:4444")
+    ap.add_argument("--media", action="store_true", help="server has the media fixtures at /static")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     steps = []
@@ -194,6 +237,59 @@ def main():
         rows = app.find_elements(By.XPATH, "//div[@data-index][.//span[normalize-space(.)='bypass.zip']]")
         assert not rows, "bypassed download must not reach Velox"
         step("Alt+click bypass leaves the download to the browser")
+
+        if args.media:
+            master = f"{args.server}/static/hls/master.m3u8"
+            page.goto(f"{args.server}/page?title=Velox%20HLS%20Clip&video={urllib.parse.quote(master, safe='')}")
+            box = page.locator("#video").bounding_box()
+            cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+
+            def revealed():
+                page.mouse.move(cx, cy)
+                page.mouse.move(cx + 3, cy + 3)
+                return [b for b in shadow_elements(page, "BUTTON", "btn") if "show" in b["class"].split()]
+
+            btn = wait_for(revealed, timeout=20, interval=0.5, what="floating video button")[0]
+            assert "Download This Video" in btn["text"], btn
+            assert box["x"] < btn["x"] < box["x"] + box["width"] and box["y"] < btn["y"] < box["y"] + 60, (btn, box)
+            step("floating 'Download This Video' button shown over the video")
+            page.mouse.click(btn["x"], btn["y"])
+            items = wait_for(
+                lambda: (lambda i: i if any("180p" in x["text"] for x in i) else None)(shadow_elements(page, "BUTTON", "item")),
+                timeout=30,
+                what="quality menu",
+            )
+            labels = [i["text"] for i in items]
+            assert any(t.startswith("360p") for t in labels) and any(t.startswith("Audio only") for t in labels), labels
+            page.screenshot(path=os.path.join(args.out, "b4-video-menu.png"))
+            step(f"quality menu lists {labels}")
+            choice = next(i for i in items if i["text"].startswith("180p"))
+            page.mouse.click(choice["x"], choice["y"])
+            wait_for(
+                lambda: any("Sent to Velox" in t["text"] for t in shadow_elements(page, "DIV", "toast")),
+                timeout=15,
+                what="'Sent to Velox' toast",
+            )
+            step("180p sent to Velox")
+
+            name = "Velox HLS Clip.mp4"
+
+            def media_done():
+                rows = app.find_elements(By.XPATH, f"//div[@data-index][.//span[normalize-space(.)='{name}']]")
+                return rows and "Completed" in app.execute_script("return arguments[0].textContent", rows[0])
+
+            wait_for(media_done, timeout=90, what="HLS download completed in Velox")
+            app.save_screenshot(os.path.join(args.out, "b5-video-in-app.png"))
+            probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,height", "-of", "json", os.path.join(args.downloads, name)],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            streams = json.loads(probe.stdout)["streams"]
+            assert [x["codec_type"] for x in streams] == ["video", "audio"], streams
+            assert streams[0]["height"] == 180, streams
+            step("Velox downloaded and merged the HLS stream (180p video + audio)")
 
         print(f"[browser-e2e] PASS: {', '.join(steps)}", flush=True)
         return 0

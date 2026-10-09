@@ -6,8 +6,10 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { AddDownloadRequest } from "@/bindings/AddDownloadRequest";
 import type { ChecksumAlgorithm } from "@/bindings/ChecksumAlgorithm";
+import type { MediaSourceKind } from "@/bindings/MediaSourceKind";
 import type { StartMode } from "@/bindings/StartMode";
 import type { UrlInfo } from "@/bindings/UrlInfo";
+import { MediaPicker, type MediaChoice } from "@/components/dialogs/MediaPicker";
 import { FileIcon } from "@/components/FileIcon";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -45,6 +47,7 @@ export function AddDownloadDialog() {
   const [checksum, setChecksum] = useState("");
   const [limit, setLimit] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [mediaChoice, setMediaChoice] = useState<MediaChoice | null>(null);
   const probeSeq = useRef(0);
 
   // Reset when opened; prefill from the request or the clipboard.
@@ -63,6 +66,7 @@ export function AddDownloadDialog() {
     setCookies("");
     setChecksum("");
     setLimit("");
+    setMediaChoice(null);
     setConnections(String(settings?.downloads.connections_per_download ?? 8));
     if (addDialog.url) {
       setUrl(addDialog.url);
@@ -122,6 +126,17 @@ export function AddDownloadDialog() {
   }, [url, addDialog.open, referer, username, password, cookies]);
 
   const urlValid = isProbablyUrl(url.trim());
+  // Streaming manifests always go through the media engine; web pages only
+  // when the user picked a video found on them.
+  const mediaKind: MediaSourceKind | null =
+    info?.kind === "hls" ? "hls" : info?.kind === "dash" ? "dash" : info?.mime?.toLowerCase().startsWith("text/html") ? "page" : null;
+  const mediaRequest = mediaKind ? mediaChoice?.request ?? null : null;
+  const blocked = !!mediaKind && !!mediaChoice?.blocked;
+
+  const onMediaChoice = (c: MediaChoice) => {
+    setMediaChoice(c);
+    if (c.title && !nameEdited) setName(c.title);
+  };
   const checksumAlgo = useMemo(() => {
     const c = checksum.trim().toLowerCase();
     return c && /^[0-9a-f]+$/.test(c) ? HEX_LEN_ALGO[c.length] ?? null : null;
@@ -146,8 +161,9 @@ export function AddDownloadDialog() {
         start,
         checksum: checksumAlgo ? { algorithm: checksumAlgo, expected: checksum.trim().toLowerCase() } : null,
         speed_limit: limitBytes || null,
-        expected_size: info?.total_size ?? null,
-        mime: info?.mime ?? null,
+        expected_size: mediaRequest ? null : info?.total_size ?? null,
+        mime: mediaRequest ? null : info?.mime ?? null,
+        media: mediaRequest,
       };
       const d = await api.addDownload(req);
       closeAdd();
@@ -201,12 +217,21 @@ export function AddDownloadDialog() {
                 <div className="flex flex-wrap gap-x-5 gap-y-1">
                   <span>
                     <span className="text-muted-foreground">{t("add.size")}: </span>
-                    <b className="tabular">{info.total_size !== null ? formatBytes(info.total_size) : t("common.unknown")}</b>
+                    <b className="tabular">
+                      {mediaRequest && mediaChoice?.size
+                        ? `≈ ${formatBytes(mediaChoice.size)}`
+                        : info.total_size !== null
+                          ? formatBytes(info.total_size)
+                          : t("common.unknown")}
+                    </b>
                   </span>
-                  <span>
-                    <span className="text-muted-foreground">{t("add.resume")}: </span>
-                    <b className={info.resumable ? "text-success" : "text-warning"}>{info.resumable ? t("common.yes") : t("common.no")}</b>
-                  </span>
+                  {/* Streams resume per segment; the playlist's own range support is irrelevant. */}
+                  {mediaKind !== "hls" && mediaKind !== "dash" && (
+                    <span>
+                      <span className="text-muted-foreground">{t("add.resume")}: </span>
+                      <b className={info.resumable ? "text-success" : "text-warning"}>{info.resumable ? t("common.yes") : t("common.no")}</b>
+                    </span>
+                  )}
                   {info.mime && (
                     <span className="truncate text-muted-foreground" dir="ltr">
                       {info.mime.split(";")[0]}
@@ -231,6 +256,15 @@ export function AddDownloadDialog() {
           )}
           {info && (info.kind === "hls" || info.kind === "dash") && (
             <div className="rounded-md bg-primary-soft px-3 py-2 text-xs text-primary">{t("add.media")}</div>
+          )}
+          {mediaKind && info && (
+            <MediaPicker
+              url={info.final_url || url.trim()}
+              kind={mediaKind}
+              referer={referer.trim() || null}
+              cookies={cookies.trim() || null}
+              onChange={onMediaChoice}
+            />
           )}
 
           <div className="grid grid-cols-[1fr_auto] gap-3">
@@ -331,13 +365,13 @@ export function AddDownloadDialog() {
           <Button variant="ghost" onClick={closeAdd}>
             {t("common.cancel")}
           </Button>
-          <Button variant="secondary" disabled={!urlValid || submitting} onClick={() => submit("queue")}>
+          <Button variant="secondary" disabled={!urlValid || submitting || blocked} onClick={() => submit("queue")}>
             {t("add.addToQueue")}
           </Button>
-          <Button variant="secondary" disabled={!urlValid || submitting} onClick={() => submit("paused")}>
+          <Button variant="secondary" disabled={!urlValid || submitting || blocked} onClick={() => submit("paused")}>
             {t("add.later")}
           </Button>
-          <Button disabled={!urlValid || submitting || checksumInvalid || limitInvalid} onClick={() => submit("now")}>
+          <Button disabled={!urlValid || submitting || checksumInvalid || limitInvalid || blocked} onClick={() => submit("now")}>
             {submitting && <Loader2 className="animate-spin" />}
             {t("add.startNow")}
           </Button>
