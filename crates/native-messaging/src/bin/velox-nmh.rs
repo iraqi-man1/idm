@@ -260,6 +260,40 @@ fn needs_app_launch(m: &ExtMessage) -> bool {
     )
 }
 
+/// Register this host for every supported browser (current user).
+fn register(data_dir: Option<&std::path::Path>, log: &Logger) -> i32 {
+    let (Ok(host), Some(dir)) = (std::env::current_exe(), data_dir) else {
+        eprintln!("cannot determine the host location or the data directory");
+        return 1;
+    };
+    let extra = extra_allowed_ids(Some(dir));
+    let statuses = manifest::register_user(&host, &dir.join("native-messaging"), &extra);
+    let mut failed = false;
+    for s in &statuses {
+        match &s.error {
+            Some(e) => {
+                failed = true;
+                println!("{}: failed: {e}", s.name);
+            }
+            None if s.registered => println!("{}: registered", s.name),
+            None => println!("{}: not installed", s.name),
+        }
+    }
+    log.log(&format!(
+        "registered for {} browsers",
+        statuses.iter().filter(|s| s.registered).count()
+    ));
+    i32::from(failed)
+}
+
+fn unregister(data_dir: Option<&std::path::Path>, log: &Logger) -> i32 {
+    let Some(dir) = data_dir else { return 1 };
+    manifest::unregister_user(&dir.join("native-messaging"));
+    log.log("unregistered");
+    println!("unregistered");
+    0
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -267,6 +301,13 @@ async fn main() {
         .map(PathBuf::from)
         .or_else(ipc::app_data_dir);
     let log = Logger::new(data_dir.as_deref());
+    // Run by the installer / uninstaller (never by a browser, which passes
+    // the caller's origin as the first argument).
+    match args.get(1).map(String::as_str) {
+        Some("--register") => std::process::exit(register(data_dir.as_deref(), &log)),
+        Some("--unregister") => std::process::exit(unregister(data_dir.as_deref(), &log)),
+        _ => {}
+    }
     let Some((origin, browser)) = caller(&args) else {
         log.log("started without a browser caller; this program is launched by web browsers");
         std::process::exit(2);

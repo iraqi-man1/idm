@@ -106,5 +106,17 @@ application) was driven in an automated test; see `DEVELOPMENT_PROGRESS.md`.
 | DRM detection and refusal | ✅ | E2E (SAMPLE-AES); DASH ContentProtection unit-tested |
 | Live streams | 🚫 | refused with a clear message |
 | Web pages via yt-dlp | ✅ | E2E with yt-dlp's generic extractor; site-specific extractors depend on the bundled yt-dlp version |
-| FFmpeg / yt-dlp bundled with the installer | ⏳ | Phase 7 (sidecars); dev builds may use system copies |
+| FFmpeg / yt-dlp bundled with the installer | 🟡 | pinned + verified sidecars; Linux release package built and E2E-tested here; Windows installer built in CI (not run here) |
 | Tool status in settings | ✅ | E2E |
+
+## Packaging and release
+
+| Feature | Status | Notes |
+|---|---|---|
+| Pinned, checksum-verified FFmpeg/ffprobe/yt-dlp | ✅ | Windows x64 and Linux x64 hashes verified by download; macOS FFmpeg not pinned |
+| Windows NSIS installer with offline WebView2, native-host registration hooks | 🟡 | configured; built by `release.yml` (not run here); clean-machine gate pending |
+| Linux AppImage / .deb | 🟡 | .deb release build verified here; AppImage built by `release.yml`; see KNOWN_ISSUES for .deb |
+| macOS .dmg | ⏳ | needs a pinned FFmpeg source and signing/notarization |
+| Signed auto-updates | 🟡 | updater wired; signing key must be configured by the maintainer |
+| CI on Linux and Windows, E2E in CI | 🟡 | workflows written; first run pending |
+| Third-party notices | ✅ | generated from cargo metadata and npm |

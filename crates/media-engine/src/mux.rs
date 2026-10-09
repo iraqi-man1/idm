@@ -25,6 +25,31 @@ pub fn output_ext(container: OutputContainer, fallback: &str) -> String {
         .unwrap_or_else(|| fallback.to_string())
 }
 
+/// Demuxer for a downloaded track. Forcing it keeps FFmpeg from probing
+/// remote-supplied data as something else (e.g. an HLS playlist that
+/// references local files).
+fn demuxer(path: &Path) -> Option<&'static str> {
+    let ext = path.extension()?.to_str()?.to_ascii_lowercase();
+    Some(match ext.as_str() {
+        "ts" => "mpegts",
+        "mp4" | "m4s" | "m4a" | "m4v" | "mov" => "mov",
+        "aac" => "aac",
+        "mp3" => "mp3",
+        "vtt" => "webvtt",
+        "webm" | "mkv" => "matroska",
+        _ => return None,
+    })
+}
+
+/// `-i path`, restricted to local files and the expected container.
+fn add_input(a: &mut Vec<String>, path: &Path) {
+    a.extend(["-protocol_whitelist".into(), "file".into()]);
+    if let Some(f) = demuxer(path) {
+        a.extend(["-f".into(), f.into()]);
+    }
+    a.extend(["-i".into(), path.to_string_lossy().to_string()]);
+}
+
 /// FFmpeg arguments for a mux job (exposed for tests).
 pub fn args(
     input: &MuxInput,
@@ -43,7 +68,7 @@ pub fn args(
     let mut maps = Vec::new();
     let audio_only = container.is_audio_only();
     if let Some(v) = &input.video {
-        a.extend(["-i".into(), v.to_string_lossy().to_string()]);
+        add_input(&mut a, v);
         if !audio_only {
             maps.push(format!("{inputs}:v?"));
         }
@@ -53,7 +78,7 @@ pub fn args(
         inputs += 1;
     }
     if let Some(au) = &input.audio {
-        a.extend(["-i".into(), au.to_string_lossy().to_string()]);
+        add_input(&mut a, au);
         maps.push(format!("{inputs}:a"));
         inputs += 1;
     }
@@ -62,7 +87,7 @@ pub fn args(
     let mut sub_index = 0;
     if embed_subs {
         for (path, _) in &input.subtitles {
-            a.extend(["-i".into(), path.to_string_lossy().to_string()]);
+            add_input(&mut a, path);
             maps.push(format!("{inputs}:s?"));
             inputs += 1;
         }
@@ -173,6 +198,14 @@ mod tests {
         assert!(a.contains("-c:v copy -c:a copy -c:s mov_text"), "{a}");
         assert!(a.contains("-metadata:s:s:0 language=ar"), "{a}");
         assert!(a.ends_with("/w/out.mp4"));
+        assert!(
+            a.contains("-protocol_whitelist file -f mpegts -i /w/video.ts"),
+            "{a}"
+        );
+        assert!(
+            a.contains("-protocol_whitelist file -f webvtt -i /w/sub-ar.vtt"),
+            "{a}"
+        );
     }
 
     #[test]

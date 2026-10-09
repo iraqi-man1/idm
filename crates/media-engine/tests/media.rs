@@ -6,7 +6,8 @@
 //! `DownloadManager` with the `MediaEngine` runner. Results are verified
 //! with ffprobe and a full decode.
 //!
-//! The tests need `ffmpeg` and `ffprobe` (with libx264) on `PATH` or in
+//! The tests need `ffmpeg` and `ffprobe` (any build with an H.264 encoder:
+//! libx264 or OpenH264, e.g. the bundled LGPL build) on `PATH` or in
 //! `VELOX_FFMPEG` / `VELOX_FFPROBE`. When they are missing the tests are
 //! skipped, unless `VELOX_REQUIRE_MEDIA_TESTS=1` (set in CI) makes that an
 //! error.
@@ -57,6 +58,23 @@ fn ffmpeg(t: &Tools, args: &[&str]) {
     run(&mut c);
 }
 
+/// H.264 encoder arguments: libx264 when available (GPL builds), else
+/// OpenH264 (the bundled LGPL builds), else MPEG-4 part 2.
+fn h264(t: &Tools) -> Vec<&'static str> {
+    let out = Command::new(t.ffmpeg.as_ref().unwrap())
+        .args(["-hide_banner", "-encoders"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+    if out.contains(" libx264 ") {
+        vec!["-c:v", "libx264", "-preset", "ultrafast"]
+    } else if out.contains(" libopenh264 ") {
+        vec!["-c:v", "libopenh264"]
+    } else {
+        vec!["-c:v", "mpeg4"]
+    }
+}
+
 const SUB_VTT: &str = "WEBVTT\n\n00:00:00.500 --> 00:00:02.000\nHello Velox\n\n00:00:02.500 --> 00:00:04.000\nمرحبا\n";
 
 /// Generate all fixtures once per test binary.
@@ -70,22 +88,23 @@ fn fixtures(t: &Tools) -> &'static Path {
             std::fs::create_dir_all(dir.join(d)).unwrap();
         }
         // 6 s of video (1 s GOP) and a sine tone.
-        ffmpeg(
-            t,
-            &[
-                "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=25",
-                "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000",
-                "-t", "6", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
-                "-g", "25", "-keyint_min", "25", "-sc_threshold", "0",
-                "-c:a", "aac", "-b:a", "96k", &p("src.mp4"),
-            ],
-        );
+        let enc = h264(t);
+        let src = p("src.mp4");
+        let mut a = vec![
+            "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=25",
+            "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000", "-t", "6",
+        ];
+        a.extend(&enc);
+        a.extend([
+            "-pix_fmt", "yuv420p", "-g", "25", "-keyint_min", "25", "-sc_threshold", "0",
+            "-c:a", "aac", "-b:a", "96k", &src,
+        ]);
+        ffmpeg(t, &a);
         let hls = ["-f", "hls", "-hls_time", "1", "-hls_playlist_type", "vod"];
         for (name, size) in [("v0", "320x180"), ("v1", "640x360")] {
-            let mut a = vec![
-                "-i", &*Box::leak(p("src.mp4").into_boxed_str()), "-map", "0:v", "-c:v", "libx264", "-preset", "ultrafast",
-                "-s", size, "-g", "25", "-keyint_min", "25", "-sc_threshold", "0", "-an",
-            ];
+            let mut a = vec!["-i", &*Box::leak(p("src.mp4").into_boxed_str()), "-map", "0:v"];
+            a.extend(&enc);
+            a.extend(["-s", size, "-g", "25", "-keyint_min", "25", "-sc_threshold", "0", "-an"]);
             a.extend(hls);
             let seg = Box::leak(p(&format!("hls/{name}/seg%03d.ts")).into_boxed_str());
             let idx = Box::leak(p(&format!("hls/{name}/index.m3u8")).into_boxed_str());

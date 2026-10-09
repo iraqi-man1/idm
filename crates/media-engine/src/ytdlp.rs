@@ -67,7 +67,10 @@ impl Drop for TempCookies {
 
 fn common_args(info: &RequestInfo, cookies: Option<&TempCookies>) -> Vec<String> {
     let mut a: Vec<String> = vec![
+        // Neither user configuration nor plugin directories are loaded
+        // (both can run arbitrary code or commands).
         "--ignore-config".into(),
+        "--no-plugin-dirs".into(),
         "--no-playlist".into(),
         "--no-warnings".into(),
         "--no-colors".into(),

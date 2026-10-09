@@ -129,13 +129,24 @@ def main():
 
         step("enable the Connections column from the header menu")
         header = wait_for(lambda: by_text(driver, "button", "File name"), what="header")
-        ActionChains(driver).context_click(header).perform()
-        item = wait_for(lambda: driver.find_elements(By.XPATH, "//div[@role='menuitemcheckbox'][contains(.,'Connections')]"), what="column menu")[0]
-        time.sleep(0.3)  # menu open animation
-        ActionChains(driver).move_to_element(item).click().perform()
-        time.sleep(0.2)
-        ActionChains(driver).send_keys(Keys.ESCAPE).perform()
-        wait_for(lambda: by_text(driver, "button", "Connections"), what="connections column")
+
+        def toggle_connections_column():
+            ActionChains(driver).context_click(header).perform()
+            item = wait_for(
+                lambda: [e for e in driver.find_elements(By.XPATH, "//div[@role='menuitemcheckbox'][contains(.,'Connections')]") if e.is_displayed()],
+                what="column menu",
+            )[0]
+            time.sleep(0.3)  # menu open animation
+            try:
+                ActionChains(driver).move_to_element(item).click().perform()
+            except Exception:  # noqa: BLE001 - menu still animating; close and retry
+                ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+                return False
+            time.sleep(0.2)
+            ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+            return by_text(driver, "button", "Connections")
+
+        wait_for(toggle_connections_column, timeout=20, interval=0.5, what="connections column")
 
         step("download running with multiple connections")
         def multi_conn():

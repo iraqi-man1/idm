@@ -11,7 +11,7 @@ dist/
 # Tauri
 apps/desktop/src-tauri/gen/
 apps/desktop/src-tauri/target/
-# Sidecar binaries are fetched (and checksum-verified) by scripts/fetch-sidecars.mjs
+# Sidecar binaries are fetched (and checksum-verified) by scripts/prepare-release.mjs
 apps/desktop/src-tauri/binaries/*
 !apps/desktop/src-tauri/binaries/.gitkeep
 resources/**/*.exe

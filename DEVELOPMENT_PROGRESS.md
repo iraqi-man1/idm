@@ -1,6 +1,6 @@
 # Development Progress
 
-Last updated: 2026-10-09 (Phase 6). Newest entries first. A future session should read
+Last updated: 2026-10-09 (Phase 7). Newest entries first. A future session should read
 this file, `ARCHITECTURE.md` and `KNOWN_ISSUES.md` before continuing.
 
 ## Environment used so far
@@ -30,6 +30,37 @@ custom-protocol -p velox-nm -p velox-test-server`) and the built extension
 `VELOX_REQUIRE_MEDIA_TESTS=1` turns a missing FFmpeg into a failure instead
 of a skip, and `VELOX_YTDLP=<path>` + `VELOX_REQUIRE_YTDLP_TESTS=1` do the
 same for the yt-dlp tests.
+
+## Phase 7 — installer, bundled tools, updater, CI, hardening (done here; Windows build runs in CI)
+
+* `resources/sidecars.lock.json`: FFmpeg/ffprobe (BtbN LGPL 8.1) and yt-dlp
+  2026.08.19 per target with SHA-256 taken from the upstream checksum lists;
+  the Windows x64 and Linux x64 archives were downloaded here and their
+  hashes and layout verified. macOS FFmpeg is not pinned yet.
+* `scripts/prepare-release.mjs` (fetch + verify + extract, host build,
+  extensions; `update-lock`), `tauri.release.conf.json`, NSIS hooks,
+  `velox-nmh --register/--unregister`, release profile (thin LTO, stripped).
+* Verified here: `prepare-release.mjs` for x86_64-unknown-linux-gnu, a release
+  `tauri build` of the Linux package (168 MiB .deb: sidecars next to the
+  executable, extensions/notices/FFmpeg license as resources), and the full
+  desktop E2E against that packaged release binary — Settings → Media shows
+  all three tools as *Bundled* and the HLS step merges with the bundled
+  FFmpeg. All 16 media tests also pass with the bundled FFmpeg/ffprobe/yt-dlp
+  binaries (fixtures use OpenH264 when libx264 is absent).
+* Host registration tested with fake Chrome/Firefox profiles (manifests
+  written and removed).
+* GitHub Actions: `ci.yml` (Linux, UI, Windows, E2E) and `release.yml`
+  (Windows NSIS, Linux AppImage, optional updater signing). Not executed from
+  this environment.
+* Security pass: removed the unused shell plugin; split window capabilities;
+  FFmpeg inputs restricted to local files with forced demuxers; yt-dlp
+  without plugin directories.
+* `THIRD_PARTY_NOTICES.md` generated (731 crates, 83 npm packages, bundled
+  programs, 379 distinct license texts).
+* Not done here: the Windows installer itself (no Windows toolchain in this
+  container; the whole app is type-checked for the Windows target with
+  `cargo check --target x86_64-pc-windows-gnu`), Authenticode signing, and
+  the clean-machine gate.
 
 ## Phase 6 — queues, scheduler, FTP/SFTP, advanced features (done)
 
@@ -154,9 +185,7 @@ same for the yt-dlp tests.
 
 ## Next steps
 
-1. Phase 7: sidecar fetch script with pinned SHA-256, `externalBin` bundling
-   (velox-nmh, ffmpeg, ffprobe, yt-dlp), NSIS hooks for native-messaging
-   registration, updater signing, GitHub Actions for Windows/macOS/Linux,
-   THIRD_PARTY_NOTICES.
+1. Run CI on GitHub (needs a base branch / PR) and fix whatever the Windows
+   jobs reveal; build the NSIS installer there.
 2. Phase 8: clean-machine test on Windows 10/11 VMs (not marked passed until
    executed), release packaging, final docs.

@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  rust-linux:
+    name: Rust (Linux) — fmt, clippy, tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev ffmpeg
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter desktop build
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: yt-dlp for the extractor tests (pinned release, checksum-verified)
+        run: |
+          curl -fsSL -o yt-dlp https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp_linux
+          echo "58162f9bfdc27458ea47bfcb311cf47028f17d8154a8bf7d689861d46399230a  yt-dlp" | sha256sum -c -
+          chmod +x yt-dlp && echo "VELOX_YTDLP=$PWD/yt-dlp" >> "$GITHUB_ENV"
+      - run: cargo test --workspace --locked
+        env:
+          VELOX_REQUIRE_MEDIA_TESTS: "1"
+          VELOX_REQUIRE_YTDLP_TESTS: "1"
+
+  frontend:
+    name: UI and extensions — typecheck, tests, build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter desktop exec tsc --noEmit -p .
+      - run: pnpm --filter desktop exec vitest run
+      - run: pnpm --filter extensions exec tsc --noEmit -p .
+      - run: pnpm --filter extensions test
+      - run: pnpm --filter extensions build
+
+  windows:
+    name: Windows — tests (named pipes, registry, bundled tools)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter desktop build
+      - name: Pinned FFmpeg / yt-dlp (also checks the lock file)
+        run: node scripts/prepare-release.mjs --target x86_64-pc-windows-msvc --skip-host --skip-extensions
+      - name: Tests
+        shell: bash
+        run: |
+          B="$PWD/apps/desktop/src-tauri/binaries"
+          export VELOX_FFMPEG="$B/ffmpeg-x86_64-pc-windows-msvc.exe"
+          export VELOX_FFPROBE="$B/ffprobe-x86_64-pc-windows-msvc.exe"
+          export VELOX_YTDLP="$B/yt-dlp-x86_64-pc-windows-msvc.exe"
+          export PATH="$B:$PATH"
+          cargo test --workspace --locked
+        env:
+          VELOX_REQUIRE_MEDIA_TESTS: "1"
+
+  e2e-linux:
+    name: End-to-end (real app, Chromium + extension)
+    runs-on: ubuntu-24.04
+    needs: [rust-linux, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev \
+            webkit2gtk-driver xvfb dbus-x11 xclip ffmpeg
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Allow Chromium's sandbox (Ubuntu 24.04 restricts user namespaces)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: pip install selenium playwright && python -m playwright install chromium
+      - run: cargo install tauri-driver --locked
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter desktop build && pnpm --filter extensions build
+      - run: cargo build --locked -p velox-desktop --features custom-protocol -p velox-nm -p velox-test-server
+      - name: Desktop E2E
+        run: tests/e2e/run-linux.sh python "$PWD/target/e2e"
+      - name: Browser E2E
+        run: |
+          CHROME=$(ls -d ~/.cache/ms-playwright/chromium-*/chrome-linux*/chrome | head -1)
+          tests/e2e/run-browser-linux.sh python "$PWD/target/e2e-browser" "$CHROME"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screenshots
+          path: |
+            target/e2e
+            target/e2e-browser

@@ -238,6 +238,32 @@ checked against `~/.ssh/known_hosts`, then the app's own known-hosts file
 (trust on first use); a changed key is refused. Credentials written into an
 address are moved into the encrypted secrets store.
 
+## Packaging and release
+
+* `scripts/prepare-release.mjs` downloads FFmpeg, ffprobe (BtbN LGPL builds)
+  and yt-dlp from the URLs pinned in `resources/sidecars.lock.json`, verifies
+  their SHA-256 (a mismatch stops the build), extracts them, builds the
+  native host in release mode and builds the extensions. Everything lands in
+  `apps/desktop/src-tauri/binaries/<name>-<target>` for Tauri's `externalBin`.
+* `tauri.release.conf.json` (merged with `--config` for release builds only,
+  so development builds do not need the binaries) adds the sidecars, the
+  extension folders, FFmpeg's license and `THIRD_PARTY_NOTICES.md`. Sidecars
+  are installed next to `velox-desktop`, which is where `Tools::discover`
+  and the native-host registration look for them.
+* Windows: NSIS installer with the WebView2 offline installer embedded
+  (`webviewInstallMode: offlineInstaller`), per-user or per-machine install.
+  `installer/nsis/hooks.nsh` runs `velox-nmh --register` after installing and
+  `--unregister` (plus removal of the autostart entry) before uninstalling.
+* Updates: the Tauri updater with signed artifacts; the public key is added
+  by the release workflow from a repository variable, the private key comes
+  from a secret (see `RELEASE_CHECKLIST.md`).
+* CI (`.github/workflows/ci.yml`): fmt, clippy `-D warnings`, all Rust tests
+  with media tests required, UI/extension checks, Windows tests with the
+  pinned Windows tools, and the desktop + browser end-to-end tests.
+  `release.yml` builds the Windows installer and Linux AppImage from a tag.
+* `scripts/third-party-notices.mjs` generates `THIRD_PARTY_NOTICES.md` from
+  `cargo metadata` and the UI's production npm packages, with license texts.
+
 ## Security
 
 * TLS: rustls with the operating system trust store (platform verifier); no
@@ -254,4 +280,10 @@ address are moved into the encrypted secrets store.
   (`deny_unknown_fields`, URL scheme allow-list, header injection checks) and
   authenticates to the app's IPC endpoint with a per-user token.
 * Bundled tools are executed by absolute path with argument vectors (never a
-  shell), and only from the application's own resource directory.
+  shell), and in release builds only from the application's own directory.
+  FFmpeg inputs are restricted to local files with a forced demuxer, so
+  downloaded data cannot be interpreted as a playlist that references other
+  files; yt-dlp runs without user configuration or plugin directories.
+* Window capabilities: only the main window may read the clipboard, use the
+  updater or change autostart; progress and capture windows get window
+  management and the folder picker.

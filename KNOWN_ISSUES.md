@@ -71,3 +71,19 @@ of platform restrictions. Keep it honest and current.
 * A host not listed in `~/.ssh/known_hosts` is trusted on first use and its
   key recorded in Velox's own known-hosts file; later key changes are
   refused.
+
+## Packaging
+
+* **Linux .deb**: Tauri installs bundled programs next to the executable in
+  `/usr/bin`, where `ffmpeg`, `ffprobe` and `yt-dlp` would collide with the
+  distribution's packages. Linux releases are therefore AppImages; a .deb
+  needs the tools moved to a private directory first.
+* **macOS**: no FFmpeg build is pinned yet, and the app is not signed or
+  notarized, so there is no macOS release.
+* **Windows code signing**: the installer is not Authenticode-signed until a
+  certificate is configured; SmartScreen warns on first run.
+* **Installer size**: the static LGPL FFmpeg and ffprobe builds are about
+  130 MB each, and the WebView2 offline installer adds about 130 MB.
+* **yt-dlp and JavaScript**: some sites (notably YouTube) need a JavaScript
+  runtime for yt-dlp's extractors; Velox does not bundle one, so those sites
+  may fail while generic pages, HLS and DASH work.

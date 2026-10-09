@@ -1,0 +1,141 @@
+{
+  "comment": "Third-party tools bundled with Velox. Every file is verified against sha256 before it is bundled; see scripts/prepare-release.mjs. Refresh with `node scripts/prepare-release.mjs update-lock` and review the diff.",
+  "tools": {
+    "ffmpeg": {
+      "license": "LGPL-3.0-or-later",
+      "source": "https://github.com/BtbN/FFmpeg-Builds",
+      "checksums": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/checksums.sha256",
+      "version": "8.1 (BtbN LGPL static build)"
+    },
+    "ffprobe": {
+      "license": "LGPL-3.0-or-later",
+      "source": "https://github.com/BtbN/FFmpeg-Builds",
+      "checksums": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/checksums.sha256",
+      "version": "8.1 (BtbN LGPL static build)"
+    },
+    "yt-dlp": {
+      "license": "Unlicense",
+      "source": "https://github.com/yt-dlp/yt-dlp",
+      "checksums": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/SHA2-256SUMS",
+      "version": "2026.08.19"
+    }
+  },
+  "targets": {
+    "x86_64-pc-windows-msvc": {
+      "ffmpeg": {
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-lgpl-8.1.zip",
+        "asset": "ffmpeg-n8.1-latest-win64-lgpl-8.1.zip",
+        "sha256": "b4b9cc1291c834f14736b44e8b122f1907a7dee0116ee5ba0a626b38c18585e6",
+        "archive": "zip",
+        "member": "ffmpeg-n8.1-latest-win64-lgpl-8.1/bin/ffmpeg.exe",
+        "license_member": "ffmpeg-n8.1-latest-win64-lgpl-8.1/LICENSE.txt"
+      },
+      "ffprobe": {
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-lgpl-8.1.zip",
+        "asset": "ffmpeg-n8.1-latest-win64-lgpl-8.1.zip",
+        "sha256": "b4b9cc1291c834f14736b44e8b122f1907a7dee0116ee5ba0a626b38c18585e6",
+        "archive": "zip",
+        "member": "ffmpeg-n8.1-latest-win64-lgpl-8.1/bin/ffprobe.exe",
+        "license_member": "ffmpeg-n8.1-latest-win64-lgpl-8.1/LICENSE.txt"
+      },
+      "yt-dlp": {
+        "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp.exe",
+        "asset": "yt-dlp.exe",
+        "sha256": "66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a",
+        "archive": null
+      }
+    },
+    "aarch64-pc-windows-msvc": {
+      "ffmpeg": {
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-winarm64-lgpl-8.1.zip",
+        "asset": "ffmpeg-n8.1-latest-winarm64-lgpl-8.1.zip",
+        "sha256": "3c6b84c7d000ac5e56a9f5a55f9b7ab80eb602a953f840b237d6499e6d18beaf",
+        "archive": "zip",
+        "member": "ffmpeg-n8.1-latest-winarm64-lgpl-8.1/bin/ffmpeg.exe",
+        "license_member": "ffmpeg-n8.1-latest-winarm64-lgpl-8.1/LICENSE.txt"
+      },
+      "ffprobe": {
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-winarm64-lgpl-8.1.zip",
+        "asset": "ffmpeg-n8.1-latest-winarm64-lgpl-8.1.zip",
+        "sha256": "3c6b84c7d000ac5e56a9f5a55f9b7ab80eb602a953f840b237d6499e6d18beaf",
+        "archive": "zip",
+        "member": "ffmpeg-n8.1-latest-winarm64-lgpl-8.1/bin/ffprobe.exe",
+        "license_member": "ffmpeg-n8.1-latest-winarm64-lgpl-8.1/LICENSE.txt"
+      },
+      "yt-dlp": {
+        "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp_arm64.exe",
+        "asset": "yt-dlp_arm64.exe",
+        "sha256": "05b438997bafc3affdfda9d041353c9d73e04dc842207254b655b0887c4445b0",
+        "archive": null
+      }
+    },
+    "x86_64-unknown-linux-gnu": {
+      "ffmpeg": {
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-linux64-lgpl-8.1.tar.xz",
+        "asset": "ffmpeg-n8.1-latest-linux64-lgpl-8.1.tar.xz",
+        "sha256": "67b3a9bd7bb1604a4c42a27de9c7ea6ebd7b5348e0cebea97f4a806674441802",
+        "archive": "tar.xz",
+        "member": "ffmpeg-n8.1-latest-linux64-lgpl-8.1/bin/ffmpeg",
+        "license_member": "ffmpeg-n8.1-latest-linux64-lgpl-8.1/LICENSE.txt"
+      },
+      "ffprobe": {
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-linux64-lgpl-8.1.tar.xz",
+        "asset": "ffmpeg-n8.1-latest-linux64-lgpl-8.1.tar.xz",
+        "sha256": "67b3a9bd7bb1604a4c42a27de9c7ea6ebd7b5348e0cebea97f4a806674441802",
+        "archive": "tar.xz",
+        "member": "ffmpeg-n8.1-latest-linux64-lgpl-8.1/bin/ffprobe",
+        "license_member": "ffmpeg-n8.1-latest-linux64-lgpl-8.1/LICENSE.txt"
+      },
+      "yt-dlp": {
+        "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp_linux",
+        "asset": "yt-dlp_linux",
+        "sha256": "58162f9bfdc27458ea47bfcb311cf47028f17d8154a8bf7d689861d46399230a",
+        "archive": null
+      }
+    },
+    "aarch64-unknown-linux-gnu": {
+      "ffmpeg": {
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-linuxarm64-lgpl-8.1.tar.xz",
+        "asset": "ffmpeg-n8.1-latest-linuxarm64-lgpl-8.1.tar.xz",
+        "sha256": "63e94a69af0413a5f750ff3b262042ff592ad5944cacf9dfb42fc691df62b8ea",
+        "archive": "tar.xz",
+        "member": "ffmpeg-n8.1-latest-linuxarm64-lgpl-8.1/bin/ffmpeg",
+        "license_member": "ffmpeg-n8.1-latest-linuxarm64-lgpl-8.1/LICENSE.txt"
+      },
+      "ffprobe": {
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-linuxarm64-lgpl-8.1.tar.xz",
+        "asset": "ffmpeg-n8.1-latest-linuxarm64-lgpl-8.1.tar.xz",
+        "sha256": "63e94a69af0413a5f750ff3b262042ff592ad5944cacf9dfb42fc691df62b8ea",
+        "archive": "tar.xz",
+        "member": "ffmpeg-n8.1-latest-linuxarm64-lgpl-8.1/bin/ffprobe",
+        "license_member": "ffmpeg-n8.1-latest-linuxarm64-lgpl-8.1/LICENSE.txt"
+      },
+      "yt-dlp": {
+        "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp_linux_aarch64",
+        "asset": "yt-dlp_linux_aarch64",
+        "sha256": "b16e4dab368a816cd05d477d698a605a6ae87ccee1c8ffd38fa21d7254141fcc",
+        "archive": null
+      }
+    },
+    "x86_64-apple-darwin": {
+      "yt-dlp": {
+        "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp_macos",
+        "asset": "yt-dlp_macos",
+        "sha256": "0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202",
+        "archive": null
+      },
+      "ffmpeg": null,
+      "ffprobe": null
+    },
+    "aarch64-apple-darwin": {
+      "yt-dlp": {
+        "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp_macos",
+        "asset": "yt-dlp_macos",
+        "sha256": "0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202",
+        "archive": null
+      },
+      "ffmpeg": null,
+      "ffprobe": null
+    }
+  }
+}
