@@ -14,8 +14,8 @@ use velox_persistence::{Database, SecretBox};
 use velox_scheduler::{Clock, PowerSource, PowerState, Scheduler, SchedulerConfig};
 use velox_test_server::{expected_content, TestServer};
 use velox_types::{
-    AddDownloadRequest, DownloadId, DownloadStatus, PostAction, PowerHold, ProxyMode, QueueUpdate,
-    Schedule, SchedulerEvent, StartMode, MAIN_QUEUE_ID,
+    AddDownloadRequest, DownloadId, DownloadStatus, EngineEvent, PostAction, PowerHold, ProxyMode,
+    QueueUpdate, Schedule, SchedulerEvent, StartMode, MAIN_QUEUE_ID,
 };
 
 struct ManualClock {
@@ -411,6 +411,7 @@ async fn low_battery_holds_queue_processing() {
     })
     .await;
 
+    let mut updates = env.mgr.subscribe();
     *env.power.0.lock() = PowerState {
         on_battery: true,
         battery_percent: Some(10),
@@ -421,6 +422,15 @@ async fn low_battery_holds_queue_processing() {
     })
     .await;
     assert_eq!(env.status(id), DownloadStatus::Queued);
+    // Held downloads go straight back to the waiting list, never via Paused.
+    while let Ok(e) = updates.try_recv() {
+        if let EngineEvent::Updated { download } = e {
+            assert!(
+                !(download.id == id && download.status == DownloadStatus::Paused),
+                "held download was reported as paused"
+            );
+        }
+    }
     assert_eq!(env.sched.power_hold(), Some(PowerHold::LowBattery));
     tokio::time::sleep(Duration::from_millis(400)).await;
     assert!(!env.mgr.is_running(id), "must stay held");

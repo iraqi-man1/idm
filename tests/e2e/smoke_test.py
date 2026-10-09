@@ -24,7 +24,11 @@ import sys
 import time
 
 from selenium import webdriver
-from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import (
+    ElementClickInterceptedException,
+    ElementNotInteractableException,
+    StaleElementReferenceException,
+)
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -128,22 +132,28 @@ def main():
         by_text(driver, "button", "Start download").click()
 
         step("enable the Connections column from the header menu")
-        header = wait_for(lambda: by_text(driver, "button", "File name"), what="header")
+        wait_for(lambda: by_text(driver, "button", "File name"), what="header")
 
         def toggle_connections_column():
-            ActionChains(driver).context_click(header).perform()
-            item = wait_for(
-                lambda: [e for e in driver.find_elements(By.XPATH, "//div[@role='menuitemcheckbox'][contains(.,'Connections')]") if e.is_displayed()],
-                what="column menu",
-            )[0]
-            time.sleep(0.3)  # menu open animation
+            if by_text(driver, "button", "Connections"):
+                return True
             try:
-                ActionChains(driver).move_to_element(item).click().perform()
-            except Exception:  # noqa: BLE001 - menu still animating; close and retry
+                # The add dialog may still be fading out over the table, and a
+                # failed attempt may have left the menu open.
                 ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+                ActionChains(driver).context_click(by_text(driver, "button", "File name")).perform()
+                item = wait_for(
+                    lambda: [e for e in driver.find_elements(By.XPATH, "//div[@role='menuitemcheckbox'][contains(.,'Connections')]") if e.is_displayed()],
+                    timeout=5,
+                    what="column menu",
+                )[0]
+                time.sleep(0.3)  # menu open animation
+                if item.get_attribute("aria-checked") != "true":
+                    ActionChains(driver).move_to_element(item).click().perform()
+                time.sleep(0.2)
+                ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+            except (ElementClickInterceptedException, ElementNotInteractableException, StaleElementReferenceException, TimeoutError):
                 return False
-            time.sleep(0.2)
-            ActionChains(driver).send_keys(Keys.ESCAPE).perform()
             return by_text(driver, "button", "Connections")
 
         wait_for(toggle_connections_column, timeout=20, interval=0.5, what="connections column")
@@ -283,8 +293,12 @@ def main():
         assert os.path.getsize(os.path.join(args.downloads, "night.bin")) == 2_097_152
 
         step("post-completion countdown can be cancelled")
-        dialog = wait_for(lambda: driver.find_elements(By.CSS_SELECTOR, "[data-testid='post-action-dialog']"), timeout=15, what="countdown")[0]
-        assert "Velox will quit" in dialog.text, dialog.text
+        # WebDriver reports no text while the dialog is still fading in.
+        dialog = wait_for(
+            lambda: next((d for d in driver.find_elements(By.CSS_SELECTOR, "[data-testid='post-action-dialog']") if "Velox will quit" in d.text), None),
+            timeout=15,
+            what="countdown",
+        )
         driver.save_screenshot(os.path.join(args.out, "06b-post-action.png"))
         dialog.find_element(By.XPATH, ".//button[normalize-space(.)='Cancel']").click()
         wait_for(lambda: not driver.find_elements(By.CSS_SELECTOR, "[data-testid='post-action-dialog']"), what="countdown closed")

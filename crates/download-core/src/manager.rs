@@ -881,10 +881,12 @@ impl DownloadManager {
     }
 
     fn on_finished(&self, id: DownloadId, shared: Arc<TaskShared>, outcome: TaskOutcome) {
-        self.inner.running.lock().remove(&id);
         let db = &self.inner.db;
         let rec = shared.record.clone();
+        // Record before `running` (lock order), so nobody observes a task
+        // that is no longer running but still has its active status.
         let mut r = rec.lock();
+        self.inner.running.lock().remove(&id);
         let final_path = Path::new(&r.save_dir).join(&r.file_name);
         match outcome {
             TaskOutcome::Completed => {
@@ -908,8 +910,12 @@ impl DownloadManager {
                     // Keep the active status so the next start resumes it.
                     let _ = db.save_download(&r);
                 }
-                StopReason::Pause | StopReason::None => {
-                    r.status = DownloadStatus::Paused;
+                StopReason::Pause | StopReason::None | StopReason::Requeue => {
+                    r.status = if reason == StopReason::Requeue {
+                        DownloadStatus::Queued
+                    } else {
+                        DownloadStatus::Paused
+                    };
                     let _ = db.save_download(&r);
                     let info = to_info(&r, None, self.inner.has_secrets(&r));
                     self.inner.emit(EngineEvent::Updated { download: info });
@@ -1142,9 +1148,11 @@ impl DownloadManager {
     /// reached or a queue is stopped). Paused/failed downloads are left alone.
     pub async fn requeue(&self, id: DownloadId) -> EngineResult<()> {
         let was_running = self.is_running(id);
-        if let Some(h) = self.stop_task(id, StopReason::Pause) {
+        // The task ends as Queued itself; observers never see it paused.
+        if let Some(h) = self.stop_task(id, StopReason::Requeue) {
             Self::wait(Some(h)).await;
         }
+        // A task that was already stopping as a pause ends as Paused.
         let rec = self.record_handle(id)?;
         let mut r = rec.lock();
         let waiting = r.status == DownloadStatus::Queued;

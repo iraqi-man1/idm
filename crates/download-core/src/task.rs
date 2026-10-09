@@ -52,6 +52,8 @@ pub enum StopReason {
     Remove,
     /// Application exit: behaves like pause but keeps the "was running" flag.
     Shutdown,
+    /// Back to the waiting list (queue stopped, power hold): ends as Queued.
+    Requeue,
 }
 
 /// Live, non-persistent state of a running task.
