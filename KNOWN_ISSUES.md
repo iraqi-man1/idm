@@ -49,3 +49,25 @@ of platform restrictions. Keep it honest and current.
 * **Bundled tools**: until the Phase 7 packaging work lands, development
   builds use FFmpeg/yt-dlp from `PATH` or `VELOX_FFMPEG`/`VELOX_YTDLP`.
   Release builds use only the copies shipped with the installer.
+
+## Queues and power
+
+* **Post-completion actions** run real OS commands (`shutdown.exe`,
+  `SetSuspendState`, `systemctl`, `pmset`/AppleScript). They are not executed
+  in automated tests; the 60-second countdown and its cancellation are.
+* **Sleep on Windows** uses `SetSuspendState`; when hibernation is enabled
+  in Windows, it may hibernate instead of sleeping.
+* **Hibernate on macOS** is not supported.
+* **Metered connections** are detected on Windows only.
+
+## FTP and SFTP
+
+* FTP uses passive mode only (active mode is not supported).
+* `ftps://` means implicit TLS (port 990); use `ftpes://` for servers that
+  require explicit TLS (`AUTH TLS`).
+* SFTP logs in with a password or an unencrypted key in `~/.ssh`
+  (`id_ed25519`, `id_ecdsa`, `id_rsa`); passphrase-protected keys and SSH
+  agents are not supported yet.
+* A host not listed in `~/.ssh/known_hosts` is trusted on first use and its
+  key recorded in Velox's own known-hosts file; later key changes are
+  refused.

@@ -207,6 +207,37 @@ extractor (`Page`) downloads and answers probes.
   `VELOX_FFPROBE`, `VELOX_YTDLP` or `PATH`; Settings → Media shows which copy
   is in use.
 
+## Queues and scheduler (velox-scheduler)
+
+* Every download belongs to a queue (`main` by default, started by
+  default). Manual "Start" runs a download immediately; queue processing
+  only starts downloads that wait (`Queued`) in a started queue, within the
+  queue's and the global `max_concurrent`, highest priority first.
+* `time.rs` turns a schedule (start/stop time, days of week) into
+  edge-triggered start/stop events between two passes, so a queue the user
+  stopped inside its window is not restarted, and a start missed while the
+  computer slept still fires; at startup a queue inside its window starts.
+* `plan.rs` is the pure start planner; `Scheduler` runs it on every engine
+  event and once a second, owns queue CRUD, sends `requeue` to downloads of
+  a stopped queue, and emits `QueueFinished` when a started batch has no
+  waiting or running downloads left. The app then runs the queue's
+  post-completion action (quit, sleep, hibernate, shut down) after a
+  cancellable 60-second countdown.
+* `power.rs` reads the battery (Linux sysfs, Windows
+  `GetSystemPowerStatus`, macOS `pmset`) and, on Windows, the connection
+  cost (WinRT); the power settings can hold queue processing back.
+
+## FTP and SFTP (velox-ftp)
+
+`Remote` opens a remote file at an offset for an optional length; the
+engine's `Transport::Remote` maps that onto the same segmented task as
+HTTP (one remote session per connection, `SIZE`/`MDTM` or SFTP attributes as
+validators, `REST` for FTP offsets). FTPS uses rustls with the OS trust
+store (`ftps://` implicit, `ftpes://` explicit TLS). SFTP host keys are
+checked against `~/.ssh/known_hosts`, then the app's own known-hosts file
+(trust on first use); a changed key is refused. Credentials written into an
+address are moved into the encrypted secrets store.
+
 ## Security
 
 * TLS: rustls with the operating system trust store (platform verifier); no

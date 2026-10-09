@@ -33,7 +33,11 @@ application) was driven in an automated test; see `DEVELOPMENT_PROGRESS.md`.
 | Network interruption recovery | ✅ | backoff retries |
 | Global and per-download speed limits | ✅ | |
 | Checksum verification (MD5/SHA-1/SHA-256/SHA-512) | ✅ | |
-| FTP / SFTP | ⏳ | Phase 6 |
+| FTP (passive, REST resume, multi-connection) | ✅ | in-process test server |
+| FTPS (implicit `ftps://`, explicit `ftpes://`) | 🟡 | implemented with OS certificate verification; no automated TLS test (needs a trusted certificate) |
+| SFTP (password / `~/.ssh` key login, multi-connection, resume) | ✅ | in-process SSH server |
+| SSH host key verification (known_hosts, trust on first use, changed-key refusal) | ✅ | |
+| Credentials in addresses moved to encrypted storage | ✅ | |
 
 ## Desktop app
 
@@ -54,8 +58,11 @@ application) was driven in an automated test; see `DEVELOPMENT_PROGRESS.md`.
 | Completion/failure notifications | 🟡 | manual |
 | Single instance, URL arguments, start in tray | 🟡 | launch-argument parsing unit-tested |
 | Start with the system | 🟡 | autostart plugin; manual |
-| Clipboard monitoring | ⏳ | Phase 6 (the Add dialog already pre-fills a URL from the clipboard) |
-| Queues and scheduler, post-completion shutdown/sleep | ⏳ | Phase 6 |
+| Clipboard monitoring | ✅ | E2E (link copied with xclip opens the Add dialog) |
+| Queues: limits, priorities, start/stop, move downloads, retry failed | ✅ | engine tests + E2E |
+| Scheduler: start/stop times, days of week, scheduled downloads | ✅ | injected-clock tests + real-clock E2E |
+| Post-completion actions (quit, sleep, hibernate, shut down) | 🟡 | countdown and cancel in E2E; the OS commands are unit-tested, not executed in CI |
+| Hold queues on low battery / metered connection | 🟡 | policy and Linux battery tested; Windows/macOS readers compile-checked only |
 | Signed auto-update | 🟡 | UI + plugin wired; signing keys and release feed in Phase 7 |
 
 ## Browser integration

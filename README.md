@@ -20,8 +20,10 @@ Tauri 2, Rust and React.
 * **Media downloads** (HLS, DASH, extractor-supported sites) using bundled
   FFmpeg and yt-dlp — no separate installs. DRM-protected media is not
   supported.
-* Queues, scheduler, speed limits, statistics, English and Arabic (RTL) UI,
-  light/dark themes.
+* **FTP, FTPS and SFTP** with the same segmented, resumable engine.
+* Queues with a scheduler and post-completion actions, speed limits,
+  clipboard monitoring, statistics, English and Arabic (RTL) UI, light/dark
+  themes.
 
 See [FEATURES.md](FEATURES.md) for the exact, tested status of every feature
 and [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for limitations.

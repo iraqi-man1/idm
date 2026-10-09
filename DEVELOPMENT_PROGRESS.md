@@ -1,6 +1,6 @@
 # Development Progress
 
-Last updated: 2026-10-09. Newest entries first. A future session should read
+Last updated: 2026-10-09 (Phase 6). Newest entries first. A future session should read
 this file, `ARCHITECTURE.md` and `KNOWN_ISSUES.md` before continuing.
 
 ## Environment used so far
@@ -30,6 +30,41 @@ custom-protocol -p velox-nm -p velox-test-server`) and the built extension
 `VELOX_REQUIRE_MEDIA_TESTS=1` turns a missing FFmpeg into a failure instead
 of a skip, and `VELOX_YTDLP=<path>` + `VELOX_REQUIRE_YTDLP_TESTS=1` do the
 same for the yt-dlp tests.
+
+## Phase 6 — queues, scheduler, FTP/SFTP, advanced features (done)
+
+* New crate `velox-scheduler`: schedule arithmetic, start planner,
+  battery/metered detection, `Scheduler` runner (queue CRUD, start/stop,
+  schedules, power holds, finished-queue events). App: queue commands,
+  post-completion actions with a cancellable countdown, clipboard monitor;
+  UI: queues in the sidebar, Scheduler page, "Move to queue", queue choice
+  in the Add dialog, countdown dialog, power-hold indicator.
+* New crate `velox-ftp`: FTP/FTPS/SFTP sources; engine transport, error
+  classification and probing; SSH host-key policy; credentials from
+  addresses moved to encrypted secrets.
+* Found and fixed: a lock-order inversion between `DownloadManager::start`
+  and `list` that could deadlock a newly added download while the list was
+  read (the scheduler does that on every add). It hung the desktop E2E once;
+  a regression test reproduced it (about one run in three with the old
+  order) and always passes now.
+* Found and fixed in E2E: schedule times entered in the UI were only saved
+  on blur; time fields now save as soon as a complete time is entered, and
+  edits build on the latest queue state.
+* The Windows build is now type-checked here with
+  `cargo check --target x86_64-pc-windows-gnu` (MinGW headers for ring); this
+  caught a real Windows-only compile error (`SetSuspendState` signature).
+* Tests:
+  * `cargo test -p velox-scheduler`: 14 unit + 9 integration tests (queue and
+    global limits, stop/requeue/resume, schedules driven by an injected
+    clock, scheduled downloads, finished-queue event once per batch, low
+    battery hold and release, retry of failed downloads, queue deletion).
+  * `cargo test -p velox-ftp`: 3 unit + 5 integration tests against the
+    in-process FTP and SFTP servers.
+  * `cargo test -p velox-core --test remote`: 8 FTP/SFTP download tests.
+  * Desktop E2E: a queue scheduled on the real clock for the next minute
+    starts its download on time; the post-action countdown appears and is
+    cancelled; a copied link opens the Add dialog; FTP and SFTP downloads
+    through the Add dialog.
 
 ## Phase 5 — media (done)
 
@@ -119,12 +154,9 @@ same for the yt-dlp tests.
 
 ## Next steps
 
-1. Phase 6: queues and scheduler (start/stop times, days, post-completion
-   shutdown/sleep), max concurrent downloads per queue, clipboard monitor,
-   FTP/SFTP, battery/metered handling, queue UI.
-2. Phase 7: sidecar fetch script with pinned SHA-256, `externalBin` bundling
+1. Phase 7: sidecar fetch script with pinned SHA-256, `externalBin` bundling
    (velox-nmh, ffmpeg, ffprobe, yt-dlp), NSIS hooks for native-messaging
    registration, updater signing, GitHub Actions for Windows/macOS/Linux,
    THIRD_PARTY_NOTICES.
-3. Phase 8: clean-machine test on Windows 10/11 VMs (not marked passed until
+2. Phase 8: clean-machine test on Windows 10/11 VMs (not marked passed until
    executed), release packaging, final docs.
