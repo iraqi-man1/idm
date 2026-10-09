@@ -118,8 +118,10 @@ fn set_sparse(file: &File) -> io::Result<()> {
 /// Free bytes available to the current user on the volume containing `path`
 /// (or its nearest existing ancestor).
 pub fn available_space(path: &Path) -> io::Result<u64> {
+    // The nearest existing directory: Windows' GetDiskFreeSpaceExW rejects
+    // file paths (ERROR_DIRECTORY), and the partial file often exists.
     let mut p = path;
-    while !p.exists() {
+    while !p.is_dir() {
         p = match p.parent() {
             Some(parent) => parent,
             None => {

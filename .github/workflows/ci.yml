@@ -44,7 +44,7 @@ jobs:
           curl -fsSL -o yt-dlp https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp_linux
           echo "58162f9bfdc27458ea47bfcb311cf47028f17d8154a8bf7d689861d46399230a  yt-dlp" | sha256sum -c -
           chmod +x yt-dlp && echo "VELOX_YTDLP=$PWD/yt-dlp" >> "$GITHUB_ENV"
-      - run: cargo test --workspace --locked
+      - run: cargo test --workspace --locked --no-fail-fast
         env:
           VELOX_REQUIRE_MEDIA_TESTS: "1"
           VELOX_REQUIRE_YTDLP_TESTS: "1"
@@ -90,7 +90,7 @@ jobs:
           export VELOX_FFPROBE="$B/ffprobe-x86_64-pc-windows-msvc.exe"
           export VELOX_YTDLP="$B/yt-dlp-x86_64-pc-windows-msvc.exe"
           export PATH="$B:$PATH"
-          cargo test --workspace --locked
+          cargo test --workspace --locked --no-fail-fast
         env:
           VELOX_REQUIRE_MEDIA_TESTS: "1"
 
