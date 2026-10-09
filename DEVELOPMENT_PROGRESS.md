@@ -45,11 +45,24 @@ same for the yt-dlp tests.
 * `release.yml` can be run manually (Actions → Release → Run workflow): it
   builds the Windows NSIS installer and the Linux AppImage and attaches them
   with `SHA256SUMS.txt` to the run, without creating a release.
-* First GitHub Actions run (CI on this branch): UI/extensions and Rust
-  (Linux: fmt, clippy, all tests) passed. The Windows job found a real bug:
-  `available_space()` passed a file path to `GetDiskFreeSpaceExW`, so the
-  free-space check was silently skipped on Windows whenever the partial file
-  existed; fixed. CI now runs with `--no-fail-fast`.
+* `scripts/check-installer.sh` runs in the `Release` workflow after the
+  build: it lists the NSIS installer (7-Zip) or the extracted AppImage and
+  fails when the app, native host, FFmpeg, ffprobe, yt-dlp, extensions,
+  notices or (Windows) the WebView2 offline installer are missing.
+* GitHub Actions results so far:
+  * UI/extensions, Rust on Linux (fmt, clippy, all tests) and the desktop +
+    browser E2E passed on the first run.
+  * The Windows job found real bugs, all fixed with regression tests:
+    `available_space()` passed a file path to `GetDiskFreeSpaceExW`, so the
+    free-space check was silently skipped whenever the partial file existed;
+    and `requeue()` (queue stop, power hold) briefly reported the download
+    as Paused before Queued (now `StopReason::Requeue`; the task's exit is
+    atomic for observers). The named-pipe client also retries
+    `ERROR_PIPE_BUSY`. CI runs with `--no-fail-fast`.
+  * Two E2E races (text read during a dialog's fade-in; column menu click)
+    were fixed in the test.
+  * A manual `Release` run built the Windows NSIS installer (13 min) and the
+    Linux AppImage on the first attempt.
 * MSRV corrected to 1.90 (Tauri 2.12, russh 0.64 and suppaftp 12 require
   it). README states plainly that no release exists yet.
 

@@ -75,6 +75,23 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm --filter desktop tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config src-tauri/tauri.release.conf.json $UPDATER_CONFIG
+      - uses: tauri-apps/tauri-action@v0
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/desktop
+          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config src-tauri/tauri.release.conf.json ${{ env.UPDATER_CONFIG }}
+          tagName: ${{ github.ref_name }}
+          releaseName: Velox Download Manager ${{ github.ref_name }}
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: true
+      - name: Check installer contents
+        shell: bash
+        run: scripts/check-installer.sh target/${{ matrix.target }}/release/bundle ${{ matrix.target }}
       - name: Checksums
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         shell: bash
@@ -91,17 +108,3 @@ jobs:
             target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
             target/${{ matrix.target }}/release/bundle/SHA256SUMS.txt
           if-no-files-found: error
-      - uses: tauri-apps/tauri-action@v0
-        if: startsWith(github.ref, 'refs/tags/')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          projectPath: apps/desktop
-          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config src-tauri/tauri.release.conf.json ${{ env.UPDATER_CONFIG }}
-          tagName: ${{ github.ref_name }}
-          releaseName: Velox Download Manager ${{ github.ref_name }}
-          releaseDraft: true
-          prerelease: false
-          includeUpdaterJson: true
