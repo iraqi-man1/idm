@@ -415,13 +415,24 @@ pub async fn connect(
     #[cfg(windows)]
     {
         use tokio::net::windows::named_pipe::ClientOptions;
-        let client =
-            ClientOptions::new()
-                .open(&info.endpoint)
-                .map_err(|e| match e.raw_os_error() {
-                    Some(2) => ConnectError::NotRunning, // ERROR_FILE_NOT_FOUND
-                    _ => ConnectError::Io(e),
-                })?;
+        const ERROR_FILE_NOT_FOUND: i32 = 2;
+        const ERROR_PIPE_BUSY: i32 = 231;
+        // All instances are busy until the server has created the next one
+        // after accepting a connection; retry briefly.
+        let mut attempts = 0;
+        let client = loop {
+            match ClientOptions::new().open(&info.endpoint) {
+                Ok(c) => break c,
+                Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY) && attempts < 100 => {
+                    attempts += 1;
+                    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+                }
+                Err(e) if e.raw_os_error() == Some(ERROR_FILE_NOT_FOUND) => {
+                    return Err(ConnectError::NotRunning)
+                }
+                Err(e) => return Err(ConnectError::Io(e)),
+            }
+        };
         if let Some(pid) = pipe_server_pid(&client) {
             if pid != info.pid {
                 return Err(ConnectError::WrongServer);
