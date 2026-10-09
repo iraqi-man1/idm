@@ -40,6 +40,9 @@ refuses to bundle a file whose hash differs.
 - [ ] UI and extension typecheck, unit tests and builds pass (CI `frontend` job)
 - [ ] Desktop and browser end-to-end tests pass (CI `e2e-linux` job)
 - [ ] `node scripts/third-party-notices.mjs` run and `THIRD_PARTY_NOTICES.md` committed
+- [ ] Release candidate built with a manual `Release` run (Actions → Release →
+  Run workflow; installers attached to the run, no release created) and used
+  for the clean-machine gate below
 - [ ] Tag `vX.Y.Z` pushed; the `Release` workflow built:
   - [ ] Windows x64 NSIS installer (sidecars verified, WebView2 offline installer embedded)
   - [ ] Linux x64 AppImage

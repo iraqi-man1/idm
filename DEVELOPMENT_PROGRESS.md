@@ -1,6 +1,6 @@
 # Development Progress
 
-Last updated: 2026-10-09 (Phase 7). Newest entries first. A future session should read
+Last updated: 2026-10-09 (Phase 8). Newest entries first. A future session should read
 this file, `ARCHITECTURE.md` and `KNOWN_ISSUES.md` before continuing.
 
 ## Environment used so far
@@ -10,8 +10,7 @@ this file, `ARCHITECTURE.md` and `KNOWN_ISSUES.md` before continuing.
   WebKitWebDriver + tauri-driver, Playwright's Chromium build.
 * Windows is not available in this environment: Windows builds and the
   clean-machine gate run in GitHub Actions / a Windows VM (see
-  `RELEASE_CHECKLIST.md`). GitHub release downloads (yt-dlp, FFmpeg builds)
-  are blocked from this container, so sidecars are fetched in CI.
+  `RELEASE_CHECKLIST.md`).
 
 ## How to run the tests
 
@@ -30,6 +29,29 @@ custom-protocol -p velox-nm -p velox-test-server`) and the built extension
 `VELOX_REQUIRE_MEDIA_TESTS=1` turns a missing FFmpeg into a failure instead
 of a skip, and `VELOX_YTDLP=<path>` + `VELOX_REQUIRE_YTDLP_TESTS=1` do the
 same for the yt-dlp tests.
+
+## Phase 8 — clean-machine gate, release packaging, final docs (gate NOT executed)
+
+* `docs/testing/clean-machine-test.md`: the Windows 10/11 VM procedure (12
+  steps, offline install, bundled tools, segmented download, pause/resume
+  across restart, browser integration, native messaging, video, uninstall)
+  with an empty results table. **The gate has not been run**; it needs real
+  Windows VMs, which this environment does not have. Nothing in
+  `RELEASE_CHECKLIST.md` is ticked.
+* `tests/clean-machine/check-install.ps1` / `check-uninstall.ps1`: read-only
+  evidence collection for steps 4 and 11 (files, tools runnable with a
+  minimal PATH, WebView2 registry key, native-messaging keys, cleanup).
+  Not executed here (no PowerShell/Windows available).
+* `release.yml` can be run manually (Actions → Release → Run workflow): it
+  builds the Windows NSIS installer and the Linux AppImage and attaches them
+  with `SHA256SUMS.txt` to the run, without creating a release.
+* First GitHub Actions run (CI on this branch): UI/extensions and Rust
+  (Linux: fmt, clippy, all tests) passed. The Windows job found a real bug:
+  `available_space()` passed a file path to `GetDiskFreeSpaceExW`, so the
+  free-space check was silently skipped on Windows whenever the partial file
+  existed; fixed. CI now runs with `--no-fail-fast`.
+* MSRV corrected to 1.90 (Tauri 2.12, russh 0.64 and suppaftp 12 require
+  it). README states plainly that no release exists yet.
 
 ## Phase 7 — installer, bundled tools, updater, CI, hardening (done here; Windows build runs in CI)
 
@@ -185,7 +207,9 @@ same for the yt-dlp tests.
 
 ## Next steps
 
-1. Run CI on GitHub (needs a base branch / PR) and fix whatever the Windows
-   jobs reveal; build the NSIS installer there.
-2. Phase 8: clean-machine test on Windows 10/11 VMs (not marked passed until
-   executed), release packaging, final docs.
+1. Get the Windows CI job green and build the NSIS installer with a manual
+   `Release` run.
+2. Execute the clean-machine gate on Windows 10 and 11 VMs and record the
+   results in `docs/testing/clean-machine-test.md`.
+3. Configure the updater signing key and, when available, an Authenticode
+   certificate (`RELEASE_CHECKLIST.md`).

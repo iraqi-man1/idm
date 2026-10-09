@@ -30,14 +30,21 @@ and [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for limitations.
 
 ## For users
 
-Download the Windows installer from the Releases page and run it. Everything
-the app needs (including FFmpeg and yt-dlp) is inside the installer; no
-Python, Node.js or other tools are required. Then open **Settings → Browser**
-to add the browser extension.
+No release has been published yet. Installers are built by the `Release`
+workflow from a version tag (see [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md));
+the Windows installer has not yet passed the clean-machine test in
+[docs/testing/clean-machine-test.md](docs/testing/clean-machine-test.md).
+
+Once released: download the Windows installer from the Releases page and run
+it. Everything the app needs (WebView2 offline installer, FFmpeg, ffprobe,
+yt-dlp and the native messaging host) is inside the installer; no Python,
+Node.js or other tools are required. Then open **Settings → Browser** to add
+the browser extension (browsers require you to confirm extension installs;
+the app cannot install it silently).
 
 ## For developers
 
-Requirements: Rust (stable, ≥ 1.85), Node.js 22, pnpm 10, and the
+Requirements: Rust (stable, ≥ 1.90), Node.js 22, pnpm 10, and the
 [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS.
 
 ```bash

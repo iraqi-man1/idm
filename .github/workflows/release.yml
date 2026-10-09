@@ -65,7 +65,34 @@ jobs:
           else
             echo "::warning::updater signing is not configured; the release has no update artifacts"
           fi
+      # Manual runs (workflow_dispatch on a branch) build the same installers
+      # and attach them to the workflow run instead of creating a release,
+      # e.g. for the clean-machine test.
+      - name: Build installers (no release)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm --filter desktop tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config src-tauri/tauri.release.conf.json $UPDATER_CONFIG
+      - name: Checksums
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        shell: bash
+        run: |
+          cd target/${{ matrix.target }}/release/bundle
+          find . -type f \( -name '*-setup.exe' -o -name '*.AppImage' \) -exec sha256sum {} + | tee SHA256SUMS.txt
+          test -s SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          name: installer-${{ matrix.target }}
+          path: |
+            target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe
+            target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+            target/${{ matrix.target }}/release/bundle/SHA256SUMS.txt
+          if-no-files-found: error
       - uses: tauri-apps/tauri-action@v0
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
