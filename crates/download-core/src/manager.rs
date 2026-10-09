@@ -598,7 +598,12 @@ impl DownloadManager {
     pub async fn add(&self, mut req: AddDownloadRequest) -> EngineResult<DownloadInfo> {
         // User info in the address ("ftp://user:pass@host/...") is a
         // credential: keep it in the encrypted secrets, not in the URL.
-        let (url, embedded) = split_userinfo(req.url.trim());
+        let (url, mut embedded) = split_userinfo(req.url.trim());
+        if let Some(m) = req.media.as_mut() {
+            let (media_url, media_login) = split_userinfo(m.url.trim());
+            m.url = media_url;
+            embedded = embedded.or(media_login);
+        }
         if req
             .credentials
             .as_ref()
@@ -760,16 +765,7 @@ impl DownloadManager {
         }
 
         if !secrets.is_empty() {
-            match &self.inner.secret_box {
-                Some(sb) => {
-                    let sid = format!("dl:{}", r.id);
-                    self.inner.db.put_secrets(sb, &sid, &secrets)?;
-                    r.secret_id = Some(sid);
-                }
-                None => {
-                    self.inner.memory_secrets.lock().insert(r.id, secrets);
-                }
-            }
+            self.store_secrets(&mut r, secrets)?;
         }
         self.inner.db.save_download(&r)?;
         let id = r.id;
@@ -1084,6 +1080,9 @@ impl DownloadManager {
     /// Progress is kept; the next start validates that the new address
     /// serves the same file (size and validators) before resuming.
     pub fn update_url(&self, id: DownloadId, url: &str) -> EngineResult<()> {
+        // As in `add`, a login in the address goes to the encrypted secrets.
+        let (url, login) = split_userinfo(url.trim());
+        let url = url.as_str();
         let kind = detect_kind(url)?;
         let rec = self.record_handle(id)?;
         let mut r = rec.lock();
@@ -1097,8 +1096,17 @@ impl DownloadManager {
                 "the new address uses a different protocol".into(),
             ));
         }
-        r.url = url.trim().to_string();
+        if let Some(login) = login {
+            let mut secrets = self.inner.load_secrets(&r);
+            secrets.credentials = Some(login);
+            self.store_secrets(&mut r, secrets)?;
+        }
+        r.url = url.to_string();
         r.final_url = None;
+        // Media downloads fetch their manifest from `media.url`.
+        if let Some(m) = r.media.as_mut() {
+            m.url = url.to_string();
+        }
         if r.error_kind == Some(velox_types::ErrorKind::LinkExpired) {
             r.error = None;
             r.error_kind = None;
@@ -1108,6 +1116,25 @@ impl DownloadManager {
         let _ = self.inner.db.append_log(id, "info", "address updated");
         let info = to_info(&r, None, self.inner.has_secrets(&r));
         self.inner.emit(EngineEvent::Updated { download: info });
+        Ok(())
+    }
+
+    /// Keep a download's secrets encrypted in the database, or only in
+    /// memory when no key is available.
+    fn store_secrets(&self, r: &mut DownloadRecord, secrets: DownloadSecrets) -> EngineResult<()> {
+        match &self.inner.secret_box {
+            Some(sb) => {
+                let sid = r
+                    .secret_id
+                    .clone()
+                    .unwrap_or_else(|| format!("dl:{}", r.id));
+                self.inner.db.put_secrets(sb, &sid, &secrets)?;
+                r.secret_id = Some(sid);
+            }
+            None => {
+                self.inner.memory_secrets.lock().insert(r.id, secrets);
+            }
+        }
         Ok(())
     }
 

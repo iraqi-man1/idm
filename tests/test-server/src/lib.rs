@@ -33,7 +33,8 @@
 //! `GET /static/{path}` serves files below the directory given to
 //! [`TestServer::serve_dir`] (single `Range` requests supported); used for
 //! HLS/DASH tests with real media. [`TestServer::force_status`] makes one
-//! static path answer with a fixed status (e.g. 403 for an expired link).
+//! static path answer with a fixed status (e.g. 403 for an expired link);
+//! [`TestServer::require_static_login`] protects them with Basic auth.
 
 pub mod ftp;
 pub mod sftp;
@@ -103,6 +104,8 @@ pub struct ServerState {
     versions: Mutex<HashMap<String, u64>>,
     static_root: Mutex<Option<PathBuf>>,
     forced_status: Mutex<HashMap<String, u16>>,
+    /// Expected `Authorization` header for `/static/...`, if any.
+    static_login: Mutex<Option<String>>,
 }
 
 impl ServerState {
@@ -177,6 +180,14 @@ impl TestServer {
     /// Serve the files below `dir` at `/static/...`.
     pub fn serve_dir(&self, dir: impl Into<PathBuf>) {
         *self.state.static_root.lock() = Some(dir.into());
+    }
+
+    /// Require HTTP Basic authentication for every `/static/...` request.
+    pub fn require_static_login(&self, user: &str, password: &str) {
+        *self.state.static_login.lock() = Some(format!(
+            "Basic {}",
+            base64::engine::general_purpose::STANDARD.encode(format!("{user}:{password}"))
+        ));
     }
 
     /// Make `/static/{path}` answer `status` (or serve it normally again).
@@ -338,6 +349,16 @@ async fn serve_static(
     let status = |s: StatusCode| Response::builder().status(s).body(Body::empty()).unwrap();
     if let Some(s) = state.forced_status.lock().get(&path).copied() {
         return status(StatusCode::from_u16(s).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR));
+    }
+    let login = state.static_login.lock().clone();
+    if let Some(expected) = login {
+        let given = headers
+            .get(header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok());
+        if given != Some(expected.as_str()) {
+            stats.rejected.fetch_add(1, Ordering::SeqCst);
+            return status(StatusCode::UNAUTHORIZED);
+        }
     }
     if path
         .split('/')

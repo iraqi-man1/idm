@@ -24,7 +24,7 @@ pub use task::MediaEngine;
 pub use tools::Tools;
 
 use velox_http::RequestContext;
-use velox_types::HeaderPair;
+use velox_types::{Credentials, HeaderPair};
 
 #[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
 pub enum MediaError {
@@ -72,6 +72,9 @@ pub struct RequestInfo {
     pub cookies: Option<String>,
     pub user_agent: Option<String>,
     pub headers: Vec<HeaderPair>,
+    /// Login for the manifest's server. Sent only to the origin of `url`,
+    /// never to segment hosts elsewhere (CDNs).
+    pub credentials: Option<Credentials>,
 }
 
 impl std::fmt::Debug for RequestInfo {
@@ -80,6 +83,7 @@ impl std::fmt::Debug for RequestInfo {
             .field("url", &self.url)
             .field("referer", &self.referer)
             .field("cookies", &self.cookies.as_ref().map(|_| "<redacted>"))
+            .field("credentials", &self.credentials)
             .finish()
     }
 }
@@ -92,10 +96,46 @@ impl RequestInfo {
             user_agent: self.user_agent.clone(),
             headers: self.headers.clone(),
             cookies: self.cookies.clone(),
-            credentials: None,
+            credentials: self
+                .credentials
+                .clone()
+                .filter(|_| same_origin(&self.url, url)),
         }
+    }
+}
+
+fn same_origin(a: &str, b: &str) -> bool {
+    match (url::Url::parse(a), url::Url::parse(b)) {
+        (Ok(a), Ok(b)) => a.origin() == b.origin(),
+        _ => false,
     }
 }
 
 /// Playlists/manifests larger than this are rejected.
 pub const MAX_MANIFEST: usize = 16 * 1024 * 1024;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn credentials_only_go_to_the_manifest_origin() {
+        let info = RequestInfo {
+            url: "https://media.example:8443/live/master.m3u8".into(),
+            credentials: Some(Credentials {
+                username: "viewer".into(),
+                password: "p4ss".into(),
+            }),
+            ..Default::default()
+        };
+        let sent = |u: &str| info.context_for(u).credentials.is_some();
+        assert!(sent("https://media.example:8443/live/seg1.ts"));
+        assert!(!sent("https://cdn.example/live/seg1.ts"));
+        assert!(!sent("https://media.example/live/seg1.ts"), "other port");
+        assert!(
+            !sent("http://media.example:8443/live/seg1.ts"),
+            "other scheme"
+        );
+        assert!(!sent("not a url"));
+    }
+}

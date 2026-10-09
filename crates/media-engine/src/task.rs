@@ -27,11 +27,24 @@ use crate::{ytdlp, MediaError, RequestInfo};
 #[derive(Clone)]
 pub struct MediaEngine {
     tools: Tools,
+    secret_dir: Option<PathBuf>,
 }
 
 impl MediaEngine {
     pub fn new(tools: Tools) -> Self {
-        Self { tools }
+        Self {
+            tools,
+            secret_dir: None,
+        }
+    }
+
+    /// Keep files that carry secrets (yt-dlp cookie files) in `dir`, a
+    /// per-user application directory, instead of next to the download.
+    /// Files left behind by a crash are removed now.
+    pub fn with_secret_dir(mut self, dir: PathBuf) -> Self {
+        ytdlp::remove_cookie_files(&dir);
+        self.secret_dir = Some(dir);
+        self
     }
 
     pub fn tools(&self) -> &Tools {
@@ -57,7 +70,8 @@ impl MediaRunner for MediaEngine {
         env: TaskEnv,
     ) -> Pin<Box<dyn Future<Output = TaskOutcome> + Send>> {
         let tools = self.tools.clone();
-        Box::pin(run(tools, shared, env))
+        let secret_dir = self.secret_dir.clone();
+        Box::pin(run(tools, secret_dir, shared, env))
     }
 }
 
@@ -83,7 +97,12 @@ fn log(sh: &TaskShared, env: &TaskEnv, level: &str, msg: &str) {
     env.hooks.log(&sh.record.lock(), level, msg);
 }
 
-async fn run(tools: Tools, sh: Arc<TaskShared>, env: TaskEnv) -> TaskOutcome {
+async fn run(
+    tools: Tools,
+    secret_dir: Option<PathBuf>,
+    sh: Arc<TaskShared>,
+    env: TaskEnv,
+) -> TaskOutcome {
     let max_retries = env.settings.downloads.max_retries;
     let base_delay = env.settings.downloads.retry_delay_secs.max(1) as u64;
     let mut failures = 0u32;
@@ -92,7 +111,7 @@ async fn run(tools: Tools, sh: Arc<TaskShared>, env: TaskEnv) -> TaskOutcome {
             return TaskOutcome::Stopped(sh.stop_reason());
         }
         let before = sh.live.lock().downloaded;
-        match attempt(&tools, &sh, &env).await {
+        match attempt(&tools, secret_dir.as_deref(), &sh, &env).await {
             Ok(()) => return TaskOutcome::Completed,
             Err(_) if sh.cancel.is_cancelled() => return TaskOutcome::Stopped(sh.stop_reason()),
             Err(MediaError::Cancelled) => return TaskOutcome::Stopped(StopReason::Pause),
@@ -155,6 +174,7 @@ fn request_info(sh: &TaskShared, env: &TaskEnv, url: &str) -> RequestInfo {
             .clone()
             .or_else(|| Some(env.client_opts.user_agent.clone())),
         headers,
+        credentials: env.secrets.credentials.clone(),
     }
 }
 
@@ -507,7 +527,12 @@ fn place_output(
     Ok(target)
 }
 
-async fn attempt(tools: &Tools, sh: &Arc<TaskShared>, env: &TaskEnv) -> Result<(), MediaError> {
+async fn attempt(
+    tools: &Tools,
+    secret_dir: Option<&Path>,
+    sh: &Arc<TaskShared>,
+    env: &TaskEnv,
+) -> Result<(), MediaError> {
     let (kind, sel) = {
         let r = sh.record.lock();
         let mut sel = r.media.clone().unwrap_or_default();
@@ -534,7 +559,16 @@ async fn attempt(tools: &Tools, sh: &Arc<TaskShared>, env: &TaskEnv) -> Result<(
     );
 
     if kind == DownloadKind::Extractor {
-        return extractor(tools, sh, env, &info, &sel, &work).await;
+        return extractor(
+            tools,
+            secret_dir.unwrap_or(&work),
+            sh,
+            env,
+            &info,
+            &sel,
+            &work,
+        )
+        .await;
     }
 
     let client = build_client(&env.client_opts)?;
@@ -679,6 +713,7 @@ async fn attempt(tools: &Tools, sh: &Arc<TaskShared>, env: &TaskEnv) -> Result<(
 
 async fn extractor(
     tools: &Tools,
+    cookie_dir: &Path,
     sh: &Arc<TaskShared>,
     env: &TaskEnv,
     info: &RequestInfo,
@@ -713,6 +748,7 @@ async fn extractor(
         &dir,
         &stem,
         work,
+        cookie_dir,
         &sh.cancel,
         |p| {
             if p.part != current_part {

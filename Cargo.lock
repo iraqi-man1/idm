@@ -6938,6 +6938,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
+ "uuid",
  "velox-core",
  "velox-http",
  "velox-persistence",

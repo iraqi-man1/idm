@@ -14,10 +14,27 @@ use crate::tools::{command, tail};
 use crate::{MediaError, RequestInfo};
 
 /// Netscape cookie file for yt-dlp built from a `Cookie` header, scoped to
-/// the URL's host. Created with owner-only permissions and removed by the
-/// caller (see [`TempCookies`]).
+/// the URL's host. Created under a unique name with owner-only permissions
+/// (on Windows the per-user application directory provides that) and
+/// removed on drop; [`remove_cookie_files`] clears files left by a crash.
 pub struct TempCookies {
     path: PathBuf,
+}
+
+const COOKIE_PREFIX: &str = "cookies-";
+
+/// Delete cookie files left in `dir` (an interrupted run never dropped
+/// its [`TempCookies`]).
+pub fn remove_cookie_files(dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for e in entries.flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        if (name.starts_with(COOKIE_PREFIX) && name.ends_with(".txt")) || name == "cookies.txt" {
+            let _ = std::fs::remove_file(e.path());
+        }
+    }
 }
 
 impl TempCookies {
@@ -40,10 +57,20 @@ impl TempCookies {
             }
             body.push_str(&format!(".{host}\tTRUE\t/\t{secure}\t0\t{name}\t{value}\n"));
         }
-        std::fs::create_dir_all(dir)?;
-        let path = dir.join("cookies.txt");
+        let mut dirs = std::fs::DirBuilder::new();
+        dirs.recursive(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            dirs.mode(0o700);
+        }
+        dirs.create(dir)?;
+        let path = dir.join(format!(
+            "{COOKIE_PREFIX}{}.txt",
+            uuid::Uuid::new_v4().simple()
+        ));
         let mut opts = std::fs::OpenOptions::new();
-        opts.write(true).create(true).truncate(true);
+        opts.write(true).create_new(true);
         #[cfg(unix)]
         {
             use std::os::unix::fs::OpenOptionsExt;
@@ -325,12 +352,13 @@ pub async fn download(
     dir: &Path,
     stem: &str,
     work_dir: &Path,
+    cookie_dir: &Path,
     cancel: &CancellationToken,
     mut on_progress: impl FnMut(&Progress),
 ) -> Result<PathBuf, MediaError> {
     let cookies = match info.cookies.as_deref().filter(|c| !c.is_empty()) {
         Some(c) => Some(
-            TempCookies::create(work_dir, &info.url, c)
+            TempCookies::create(cookie_dir, &info.url, c)
                 .map_err(|e| MediaError::Io(e.to_string()))?,
         ),
         None => None,
@@ -525,7 +553,25 @@ mod tests {
                     0o600
                 );
             }
+            // Concurrent downloads get their own files.
+            let other =
+                TempCookies::create(dir.path(), "https://video.example.com/y", "c=3").unwrap();
+            assert_ne!(other.path(), c.path());
         }
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn leftover_cookie_files_are_removed() {
+        let dir = tempfile::tempdir().unwrap();
+        let leaked = TempCookies::create(dir.path(), "https://a.example/", "s=1").unwrap();
+        let path = leaked.path().to_path_buf();
+        std::mem::forget(leaked); // as if the process had been killed
+        std::fs::write(dir.path().join("cookies.txt"), "old layout").unwrap();
+        std::fs::write(dir.path().join("keep.txt"), "unrelated").unwrap();
+        remove_cookie_files(dir.path());
+        assert!(!path.exists());
+        assert!(!dir.path().join("cookies.txt").exists());
+        assert!(dir.path().join("keep.txt").exists());
     }
 }

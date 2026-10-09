@@ -39,9 +39,14 @@ impl Media {
             bundled = ?tools.bundled,
             "media tools"
         );
+        let work_dir = data_dir.join("media-probe");
+        // Cookie files for yt-dlp stay in the per-user data directory, and
+        // leftovers of an interrupted run are deleted now.
+        velox_media::ytdlp::remove_cookie_files(&work_dir);
+        let engine = MediaEngine::new(tools).with_secret_dir(data_dir.join("private"));
         Self {
-            engine: Arc::new(MediaEngine::new(tools)),
-            work_dir: data_dir.join("media-probe"),
+            engine: Arc::new(engine),
+            work_dir,
         }
     }
 }
@@ -73,6 +78,7 @@ pub async fn probe(app: &AppHandle, ctx: &MediaContext) -> CmdResult<MediaProbeR
         cookies: ctx.cookies.clone().filter(|c| !c.is_empty()),
         user_agent: ctx.user_agent.clone().filter(|u| !u.is_empty()),
         headers: Vec::new(),
+        credentials: None,
     };
     tracing::info!(url = %redact_url(&ctx.url), kind = ?ctx.kind, "probing media");
     let mut result = tokio::time::timeout(

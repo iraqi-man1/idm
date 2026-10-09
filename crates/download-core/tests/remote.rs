@@ -11,7 +11,7 @@ use velox_test_server::expected_content;
 use velox_test_server::ftp::{FtpOptions, FtpServer};
 use velox_test_server::sftp::SftpServer;
 use velox_types::{
-    AddDownloadRequest, DownloadId, DownloadInfo, DownloadStatus, ErrorKind, ProxyMode,
+    AddDownloadRequest, DownloadId, DownloadInfo, DownloadStatus, ErrorKind, ProxyMode, StartMode,
 };
 
 struct Env {
@@ -86,6 +86,22 @@ async fn finished(mgr: &DownloadManager, id: DownloadId) -> DownloadInfo {
         i.status.is_terminal() && !mgr.is_running(id)
     })
     .await
+}
+
+/// Everything SQLite has written for the database, including the WAL.
+fn database_bytes(env: &Env) -> Vec<u8> {
+    let base = env.dir.path().join("velox.sqlite");
+    let mut raw = Vec::new();
+    for suffix in ["", "-wal", "-journal"] {
+        if let Ok(b) = std::fs::read(format!("{}{suffix}", base.display())) {
+            raw.extend(b);
+        }
+    }
+    raw
+}
+
+fn contains(raw: &[u8], needle: &[u8]) -> bool {
+    raw.windows(needle.len()).any(|w| w == needle)
 }
 
 fn assert_file(env: &Env, name: &str, seed: u64, size: u64) {
@@ -256,11 +272,47 @@ async fn credentials_in_the_address_are_stored_encrypted_not_in_the_url() {
     let done = finished(&mgr, info.id).await;
     assert_eq!(done.status, DownloadStatus::Completed, "{:?}", done.error);
     assert_file(&env, "auth.bin", server.seed_for("auth.bin"), 100_000);
-    let raw = std::fs::read(env.dir.path().join("velox.sqlite")).unwrap();
+    let raw = database_bytes(&env);
+    assert!(contains(&raw, b"auth.bin"), "the scan sees the record");
+    assert!(!contains(&raw, b"s3cret"), "password stored in plain text");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn changing_the_address_moves_its_login_to_encrypted_storage() {
+    let env = Env::new();
+    let server = FtpServer::start(FtpOptions {
+        login: Some(("carol".into(), "s3cret".into())),
+        ..Default::default()
+    })
+    .await;
+    let mgr = env.manager().await;
+    let with_login = server.url(100_000, "moved.bin");
+    let without_login = with_login.replace("carol:s3cret@", "");
+    assert_ne!(with_login, without_login);
+    let info = mgr
+        .add(AddDownloadRequest {
+            start: StartMode::Paused,
+            ..req(without_login)
+        })
+        .await
+        .unwrap();
+    assert!(!info.has_secrets);
+
+    mgr.update_url(info.id, &with_login).unwrap();
+    let updated = mgr.get(info.id).unwrap();
     assert!(
-        !raw.windows(6).any(|w| w == b"s3cret"),
-        "password stored in plain text"
+        !updated.url.contains("s3cret") && !updated.url.contains("carol"),
+        "{}",
+        updated.url
     );
+    assert!(updated.has_secrets);
+    mgr.start(info.id).unwrap();
+    let done = finished(&mgr, info.id).await;
+    assert_eq!(done.status, DownloadStatus::Completed, "{:?}", done.error);
+    assert_file(&env, "moved.bin", server.seed_for("moved.bin"), 100_000);
+    let raw = database_bytes(&env);
+    assert!(contains(&raw, b"moved.bin"), "the scan sees the record");
+    assert!(!contains(&raw, b"s3cret"), "password stored in plain text");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

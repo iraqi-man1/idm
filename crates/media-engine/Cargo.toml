@@ -26,6 +26,7 @@ aes = "0.8"
 cbc = "0.1"
 hex = { workspace = true }
 sha2 = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 velox-test-server = { workspace = true }

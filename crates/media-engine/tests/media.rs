@@ -944,6 +944,43 @@ async fn untitled_manifest_is_named_after_the_playlist_without_its_extension() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn login_in_the_manifest_address_is_sent_and_stored_encrypted() {
+    let Some(env) = Env::new().await else { return };
+    env.server.require_static_login("viewer", "p4ss");
+    let mgr = env.manager().await;
+    let mut m = env.media(
+        MediaSourceKind::Hls,
+        "hls/master.m3u8",
+        OutputContainer::Mp4,
+    );
+    m.url = m.url.replacen("http://", "http://viewer:p4ss@", 1);
+    m.format_id = Some("v0".into());
+    let id = env.add(&mgr, m, None).await;
+    let info = mgr.get(id).unwrap();
+    assert!(!info.url.contains("p4ss"), "{}", info.url);
+    // Every playlist, key and segment request carried the login.
+    let path = completed(&mgr, id).await;
+    verify(&env.tools, &path);
+    assert_eq!(
+        env.server
+            .static_stats("hls/master.m3u8")
+            .rejected
+            .load(std::sync::atomic::Ordering::SeqCst),
+        0
+    );
+    // Everything SQLite wrote, including the WAL.
+    let mut raw = Vec::new();
+    for suffix in ["", "-wal", "-journal"] {
+        if let Ok(b) = std::fs::read(format!("{}{suffix}", env.db_path.display())) {
+            raw.extend(b);
+        }
+    }
+    let contains = |needle: &[u8]| raw.windows(needle.len()).any(|w| w == needle);
+    assert!(contains(b"master.m3u8"), "the scan sees the record");
+    assert!(!contains(b"p4ss"), "password stored in plain text");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn hls_alternate_audio_track_is_used() {
     let Some(env) = Env::new().await else { return };
     let mgr = env.manager().await;
