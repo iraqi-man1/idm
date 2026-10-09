@@ -15,6 +15,11 @@ of platform restrictions. Keep it honest and current.
   Downloads that never reach the downloads API (some `blob:` URLs, downloads
   triggered by page scripts with POST bodies) cannot be transferred and are
   left to the browser.
+* **Redirects to another host** keep custom headers. Authorization, Cookie
+  and Proxy-Authorization are removed when a redirect leaves the original
+  host, but other request headers, including `X-API-Key` and `X-Auth-Token`
+  (which Velox stores encrypted), are sent to the new host as well, as
+  browsers and curl do.
 * **HTTP/3** is not enabled: reqwest's HTTP/3 support is still behind an
   unstable cfg flag. HTTP/1.1 and HTTP/2 are supported.
 * **Alt+click bypass** relies on the browser turning Alt+click into a download.
@@ -46,9 +51,18 @@ of platform restrictions. Keep it honest and current.
 * **Site extractors** come from the yt-dlp version bundled with the app. Sites
   change often; extractor fixes arrive with app updates. Velox never
   downloads or replaces tool binaries on its own.
-* **Bundled tools**: until the Phase 7 packaging work lands, development
-  builds use FFmpeg/yt-dlp from `PATH` or `VELOX_FFMPEG`/`VELOX_YTDLP`.
-  Release builds use only the copies shipped with the installer.
+* **Bundled tools**: development builds use FFmpeg/yt-dlp from `PATH` or
+  `VELOX_FFMPEG`/`VELOX_YTDLP`. Release builds use only the copies shipped
+  with the installer.
+* **yt-dlp cookies**: yt-dlp reads cookies from a file. While it runs, the
+  cookies the browser sent for that site are in a temporary file in Velox's
+  per-user data folder (owner-only on Linux and macOS; on Windows the folder
+  lies in the user's profile). The file is deleted when yt-dlp finishes, and
+  files left by a crash are deleted at the next start.
+* **Logins for web pages**: a user name and password in the address of a page
+  handled by yt-dlp are stored encrypted but not passed to yt-dlp; such pages
+  need the browser's cookies instead. (HLS/DASH manifests do use them, for
+  the manifest's own server only.)
 
 ## Queues and power
 
