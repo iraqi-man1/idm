@@ -1,6 +1,6 @@
 # Velox Download Manager
 
-A fast, native desktop download manager with IDM-class segmented
+A fast, native desktop download manager with multi-connection segmented
 downloading, browser integration and a media downloader — built with
 Tauri 2, Rust and React.
 

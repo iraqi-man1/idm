@@ -10,10 +10,10 @@
 //! persisted, so after a crash the engine resumes from data known to be on
 //! disk.
 //!
-//! Work distribution follows the IDM-style "split the largest remainder"
-//! strategy: a new connection first takes over an unassigned segment; if all
-//! segments are busy it splits the segment with the largest unreceived
-//! remainder in half and takes the upper half. The connection that owned the
+//! Work distribution follows a "split the largest remainder" strategy: a
+//! new connection first takes over an unassigned segment; if all segments
+//! are busy it splits the segment with the largest unreceived remainder in
+//! half and takes the upper half. The connection that owned the
 //! split segment simply stops when it reaches the new, smaller `end`, so no
 //! request has to be re-issued and no byte is ever claimed twice.
 //!

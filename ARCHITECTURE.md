@@ -1,7 +1,7 @@
 # Velox Download Manager — Architecture
 
-Velox is a native desktop download manager (Tauri 2 + Rust + React) with an
-IDM-class segmented download engine, browser integration through Native
+Velox is a native desktop download manager (Tauri 2 + Rust + React) with a
+multi-connection segmented download engine, browser integration through Native
 Messaging, and a media subsystem built on bundled FFmpeg / yt-dlp.
 
 This document describes how the pieces fit together. `DEVELOPMENT_PROGRESS.md`
@@ -201,7 +201,8 @@ extractor (`Page`) downloads and answers probes.
   MP4) or saved as `<name>.<lang>.vtt`.
 * **Extractor.** `ytdlp.rs` runs yt-dlp for web pages (`-J` probe, download
   with a machine-readable progress template); browser cookies are passed in a
-  temporary owner-only cookie file that is deleted afterwards.
+  temporary owner-only cookie file in the per-user data directory
+  (`private/`), deleted afterwards and swept at startup after a crash.
 * **Tools.** Release builds only use FFmpeg/ffprobe/yt-dlp shipped next to the
   executable (Tauri sidecars). Debug builds may also use `VELOX_FFMPEG`,
   `VELOX_FFPROBE`, `VELOX_YTDLP` or `PATH`; Settings → Media shows which copy
@@ -272,6 +273,9 @@ address are moved into the encrypted secrets store.
   sealed with ChaCha20-Poly1305 bound to the record id. The 256-bit key is kept
   in the OS credential store (Windows Credential Manager / macOS Keychain /
   Secret Service). Without a keyring, secrets stay in memory only.
+* A login in an address (`user:pass@host`) is moved into those secrets when a
+  download is added or its address is changed, including media manifest
+  addresses; media downloads send it only to the manifest's own origin.
 * File names from servers, URLs and browsers are sanitized (no path
   components, no control or bidi-override characters, no reserved device
   names, length limited).

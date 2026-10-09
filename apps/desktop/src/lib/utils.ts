@@ -21,7 +21,7 @@ export function extractUrls(text: string): string[] {
 }
 
 /**
- * Expand IDM-style numeric patterns: `file[01-12].zip` -> file01.zip … file12.zip.
+ * Expand numeric range patterns: `file[01-12].zip` -> file01.zip … file12.zip.
  * Zero padding follows the width of the start number. At most `limit` URLs.
  */
 export function expandPattern(url: string, limit = 2000): string[] {

@@ -16,7 +16,7 @@ import { api, errorMessage } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
 import { useSettings } from "@/stores/settings";
 
-/** IDM-style "Download File Info" dialog for downloads sent by the browser. */
+/** Confirmation dialog ("Download file info") for downloads sent by the browser. */
 export function CaptureWindow({ id }: { id: string }) {
   useAppearance();
   const { t } = useTranslation();
