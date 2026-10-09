@@ -83,6 +83,7 @@ impl Env {
             db,
             secret_box: Some(SecretBox::new(&SecretBox::generate_key())),
             proxy_password: None,
+            known_hosts: None,
         })
         .await
         .unwrap();

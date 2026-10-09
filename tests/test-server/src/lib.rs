@@ -35,6 +35,9 @@
 //! HLS/DASH tests with real media. [`TestServer::force_status`] makes one
 //! static path answer with a fixed status (e.g. 403 for an expired link).
 
+pub mod ftp;
+pub mod sftp;
+
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;

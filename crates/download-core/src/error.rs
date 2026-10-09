@@ -1,3 +1,4 @@
+use velox_ftp::FtpError;
 use velox_http::HttpError;
 use velox_types::ErrorKind;
 
@@ -6,6 +7,8 @@ use velox_types::ErrorKind;
 pub enum EngineError {
     #[error(transparent)]
     Http(#[from] HttpError),
+    #[error(transparent)]
+    Ftp(FtpError),
     #[error("disk error: {0}")]
     Io(String),
     #[error("not enough free disk space (need {needed} bytes, {available} available)")]
@@ -51,6 +54,18 @@ impl EngineError {
                 HttpError::TooManyRedirects => ErrorKind::Http,
                 HttpError::Other(_) => ErrorKind::Other,
             },
+            EngineError::Ftp(f) => match f {
+                FtpError::Network(_)
+                | FtpError::Timeout
+                | FtpError::Refused(_)
+                | FtpError::Tls(_) => ErrorKind::Network,
+                FtpError::Auth(_) => ErrorKind::Auth,
+                FtpError::NotFound(_) => ErrorKind::LinkExpired,
+                FtpError::NoResume(_) => ErrorKind::ResumeUnsupported,
+                FtpError::RemoteChanged => ErrorKind::RemoteChanged,
+                FtpError::InvalidUrl(_) => ErrorKind::Unsupported,
+                FtpError::HostKey(_) | FtpError::Protocol(_) => ErrorKind::Other,
+            },
             EngineError::Io(_) => ErrorKind::Disk,
             EngineError::DiskFull { .. } => ErrorKind::DiskFull,
             EngineError::LinkExpired(_) => ErrorKind::LinkExpired,
@@ -70,7 +85,28 @@ impl EngineError {
     pub fn is_transient(&self) -> bool {
         match self {
             EngineError::Http(h) => h.is_transient(),
+            EngineError::Ftp(f) => f.is_transient(),
             EngineError::PrematureEof => true,
+            _ => false,
+        }
+    }
+
+    /// The server refused an additional connection.
+    pub fn is_connection_limit(&self) -> bool {
+        match self {
+            EngineError::Http(HttpError::Status { status, .. }) => {
+                matches!(status, 403 | 429 | 503 | 509)
+            }
+            EngineError::Ftp(f) => f.is_connection_limit(),
+            _ => false,
+        }
+    }
+
+    /// A connection-level failure (reset, timeout).
+    pub fn is_network(&self) -> bool {
+        match self {
+            EngineError::Http(h) => matches!(h, HttpError::Network(_) | HttpError::Timeout),
+            EngineError::Ftp(f) => f.is_network(),
             _ => false,
         }
     }
@@ -83,6 +119,16 @@ impl EngineError {
             }
         } else {
             EngineError::Io(e.to_string())
+        }
+    }
+}
+
+impl From<FtpError> for EngineError {
+    fn from(e: FtpError) -> Self {
+        match e {
+            FtpError::RemoteChanged => EngineError::RemoteChanged,
+            FtpError::NoResume(_) => EngineError::ResumeUnsupported,
+            other => EngineError::Ftp(other),
         }
     }
 }

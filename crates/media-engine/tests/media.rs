@@ -219,6 +219,7 @@ impl Env {
             db,
             secret_box: Some(SecretBox::new(&self.key)),
             proxy_password: None,
+            known_hosts: None,
         })
         .await
         .unwrap();

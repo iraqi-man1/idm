@@ -16,6 +16,9 @@ serde = { workspace = true }
 parking_lot = { workspace = true }
 httpdate = { workspace = true }
 base64 = "0.22"
+russh = { version = "0.64", default-features = false, features = ["ring", "rsa"] }
+russh-sftp = "3.0"
+rand = "0.10"
 
 [[bin]]
 name = "velox-test-server"

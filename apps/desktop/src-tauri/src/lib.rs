@@ -188,6 +188,7 @@ pub fn run() {
                     db,
                     secret_box: secret_box.clone(),
                     proxy_password,
+                    known_hosts: Some(data_dir.join("known_hosts")),
                 }))
                 .map_err(|e| format!("cannot start the download engine: {e}"))?;
 

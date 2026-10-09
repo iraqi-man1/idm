@@ -33,6 +33,82 @@ pub struct ProbeInfo {
 
 pub enum Transport {
     Http(HttpTransport),
+    /// FTP, FTPS or SFTP.
+    Remote(RemoteTransport),
+}
+
+pub struct RemoteTransport {
+    url: String,
+    remote: velox_ftp::Remote,
+}
+
+impl RemoteTransport {
+    pub fn new(
+        url: &str,
+        credentials: Option<&velox_types::Credentials>,
+        cfg: velox_ftp::RemoteConfig,
+    ) -> EngineResult<Self> {
+        Ok(Self {
+            url: url.to_string(),
+            remote: velox_ftp::Remote::new(url, credentials, cfg)?,
+        })
+    }
+
+    async fn probe(&self, from: u64, validators: &Validators) -> EngineResult<ProbeInfo> {
+        let o = self.remote.open(from, None).await?;
+        let remote = Validators {
+            etag: None,
+            last_modified: o.info.modified.clone(),
+        };
+        let changed = from > 0 && !validators.is_empty() && validators.conflicts_with(&remote);
+        Ok(ProbeInfo {
+            status: if from > 0 && o.at_offset { 206 } else { 200 },
+            final_url: self.url.clone(),
+            ranges: if o.info.resumable {
+                RangeSupport::Yes
+            } else {
+                RangeSupport::No
+            },
+            total_size: o.info.size,
+            body_start: if o.at_offset { from } else { 0 },
+            disposition_name: None,
+            mime: None,
+            validators: remote,
+            validator_matched: from > 0 && o.at_offset && !changed,
+            entity_changed: changed,
+            body: Some(map_remote(o.body)),
+        })
+    }
+
+    async fn open(
+        &self,
+        start: u64,
+        end: Option<u64>,
+        total: Option<u64>,
+        validators: &Validators,
+    ) -> EngineResult<ByteStream> {
+        let o = match self.remote.open(start, end.map(|e| e - start)).await {
+            Ok(o) => o,
+            // An extra connection that cannot start at an offset.
+            Err(velox_ftp::FtpError::NoResume(_)) => return Err(HttpError::RangeIgnored.into()),
+            Err(e) => return Err(e.into()),
+        };
+        if !o.at_offset {
+            return Err(HttpError::RangeIgnored.into());
+        }
+        let size_changed = total.is_some() && o.info.size.is_some() && o.info.size != total;
+        let date_changed = validators.last_modified.is_some()
+            && o.info.modified.is_some()
+            && validators.last_modified != o.info.modified;
+        if size_changed || date_changed {
+            return Err(EngineError::RemoteChanged);
+        }
+        Ok(map_remote(o.body))
+    }
+}
+
+fn map_remote(s: velox_ftp::ByteStream) -> ByteStream {
+    Box::pin(s.map(|r| r.map_err(EngineError::from)))
 }
 
 pub struct HttpTransport {
@@ -94,6 +170,7 @@ impl Transport {
                     body: p.body.map(map_stream),
                 })
             }
+            Transport::Remote(t) => t.probe(from, validators).await,
         }
     }
 
@@ -117,6 +194,7 @@ impl Transport {
                     body: p.body.map(map_stream),
                 })
             }
+            Transport::Remote(t) => t.probe(0, &Validators::default()).await,
         }
     }
 
@@ -135,6 +213,7 @@ impl Transport {
                     velox_http::open_range(&client, &t.ctx, start, end, total, validators).await?;
                 Ok(map_stream(s))
             }
+            Transport::Remote(t) => t.open(start, end, total, validators).await,
         }
     }
 

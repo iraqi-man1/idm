@@ -295,6 +295,26 @@ def main():
         by_text(driver, "button", "Cancel").click()
         by_text(driver, "button", "All downloads").click()
 
+        step("FTP download through the add dialog")
+        ftp_url = "ftp://127.0.0.1:2121/files/3145728/ftp-file.bin"
+        by_text(driver, "button", "Add URL").click()
+        area = wait_for(lambda: driver.find_element(By.ID, "add-url"), what="url field")
+        set_value(driver, area, ftp_url)
+        wait_for(lambda: by_text(driver, "b", "3.0 MB"), what="FTP size from SIZE")
+        by_text(driver, "button", "Start download").click()
+        wait_for(lambda: "Completed" in (row_status(driver, "ftp-file.bin") or ""), timeout=60, what="FTP download")
+        assert os.path.getsize(os.path.join(args.downloads, "ftp-file.bin")) == 3145728
+
+        step("SFTP download (credentials in the address, host key recorded)")
+        by_text(driver, "button", "Add URL").click()
+        area = wait_for(lambda: driver.find_element(By.ID, "add-url"), what="url field")
+        set_value(driver, area, "sftp://tester:pw@127.0.0.1:2222/files/2097152/sftp-file.bin")
+        wait_for(lambda: by_text(driver, "b", "2.0 MB"), what="SFTP size")
+        by_text(driver, "button", "Start download").click()
+        wait_for(lambda: "Completed" in (row_status(driver, "sftp-file.bin") or ""), timeout=60, what="SFTP download")
+        assert os.path.getsize(os.path.join(args.downloads, "sftp-file.bin")) == 2097152
+        driver.save_screenshot(os.path.join(args.out, "06d-ftp-sftp.png"))
+
         step("statistics page")
         by_text(driver, "button", "Statistics").click()
         wait_for(lambda: by_text(driver, "h1", "Statistics"), what="stats page")

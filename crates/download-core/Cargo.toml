@@ -10,6 +10,8 @@ license.workspace = true
 velox-types = { workspace = true }
 velox-segments = { workspace = true }
 velox-http = { workspace = true }
+velox-ftp = { workspace = true }
+percent-encoding = { workspace = true }
 velox-persistence = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
@@ -34,6 +36,8 @@ libc = "0.2"
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Ioctl"] }
 
 [dev-dependencies]
+russh = { version = "0.64", default-features = false, features = ["ring", "rsa"] }
+rand = "0.10"
 velox-test-server = { workspace = true }
 tempfile = { workspace = true }
 tracing-subscriber = { workspace = true }

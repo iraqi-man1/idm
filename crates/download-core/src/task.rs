@@ -39,7 +39,7 @@ use crate::fsutil;
 use crate::naming;
 use crate::ratelimit::RateLimiter;
 use crate::speed::SpeedMeter;
-use crate::transport::{ByteStream, HttpTransport, Transport};
+use crate::transport::{ByteStream, HttpTransport, RemoteTransport, Transport};
 use crate::writer::{DiskWriter, WriteCmd};
 
 /// Why a task was asked to stop.
@@ -108,6 +108,8 @@ pub struct TaskEnv {
     /// Final paths claimed by other downloads.
     pub reserved: Arc<Mutex<HashSet<PathBuf>>>,
     pub hooks: Arc<dyn TaskHooks>,
+    /// Timeouts and SSH known-hosts file for FTP/SFTP.
+    pub remote: velox_ftp::RemoteConfig,
 }
 
 pub enum TaskOutcome {
@@ -138,6 +140,11 @@ fn build_transport(record: &DownloadRecord, env: &TaskEnv) -> EngineResult<Trans
                 env.client_opts.clone(),
             )))
         }
+        DownloadKind::Ftp | DownloadKind::Sftp => Ok(Transport::Remote(RemoteTransport::new(
+            &record.url,
+            env.secrets.credentials.as_ref(),
+            env.remote.clone(),
+        )?)),
         other => Err(EngineError::Unsupported(format!(
             "{} downloads are not handled by the file task",
             other.as_str()
@@ -932,18 +939,15 @@ async fn supervise(
                                     "unreliable range response ({e}); continuing with one connection"
                                 ));
                             }
-                            EngineError::Http(HttpError::Status { status, .. })
-                                if others > 0 && matches!(status, 403 | 429 | 503 | 509) =>
-                            {
+                            e if others > 0 && e.is_connection_limit() => {
                                 ctl.limit_by_server(others);
                                 ctl.respawn_after = Instant::now() + Duration::from_secs(5);
                                 log(sh, env, "info", &format!(
-                                    "server refused an extra connection (HTTP {status}); limiting to {}",
+                                    "server refused an extra connection ({e}); limiting to {}",
                                     ctl.cap()
                                 ));
                             }
-                            EngineError::Http(HttpError::Network(_) | HttpError::Timeout)
-                                if others > 0 && ctl.target() > 1 =>
+                            e if others > 0 && ctl.target() > 1 && e.is_network() =>
                             {
                                 transient_errors_in_row += 1;
                                 if transient_errors_in_row >= 3 {

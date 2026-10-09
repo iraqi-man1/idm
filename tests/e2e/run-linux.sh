@@ -32,7 +32,7 @@ export DISPLAY=:99
 eval "$(dbus-launch --sh-syntax)"
 PIDS="$PIDS $DBUS_SESSION_BUS_PID"
 
-"$ROOT/target/debug/velox-test-server" --port 8787 --static "$FIXTURES" >"$OUT/test-server.log" 2>&1 & PIDS="$PIDS $!"
+"$ROOT/target/debug/velox-test-server" --port 8787 --static "$FIXTURES" --ftp-port 2121 --sftp-port 2222 >"$OUT/test-server.log" 2>&1 & PIDS="$PIDS $!"
 tauri-driver --port 4444 --native-port 4443 >"$OUT/tauri-driver.log" 2>&1 & PIDS="$PIDS $!"
 sleep 2
 

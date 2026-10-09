@@ -233,7 +233,9 @@ fn check_opt(field: &str, value: &Option<String>, max: usize) -> Result<(), Vali
 pub fn check_download_url(field: &str, url: &str) -> Result<(), ValidationError> {
     check_len(field, url, MAX_URL_LEN)?;
     let lower = url.trim_start().to_ascii_lowercase();
-    let allowed = ["http://", "https://", "ftp://", "ftps://", "sftp://"];
+    let allowed = [
+        "http://", "https://", "ftp://", "ftps://", "ftpes://", "sftp://",
+    ];
     if !allowed.iter().any(|p| lower.starts_with(p)) {
         return Err(ValidationError(format!(
             "{field} must be an http(s), ftp(s) or sftp URL"

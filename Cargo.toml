@@ -10,6 +10,7 @@ members = [
     "crates/native-messaging",
     "crates/media-engine",
     "crates/scheduler",
+    "crates/ftp-engine",
     "apps/desktop/src-tauri",
 ]
 
@@ -72,3 +73,11 @@ rand = "0.8"
 regex = "1"
 tempfile = "3"
 dirs = "6"
+
+# Leaner debug builds: line tables for our crates (backtraces keep file and
+# line), no debug info for dependencies. Cuts build output size several-fold.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false

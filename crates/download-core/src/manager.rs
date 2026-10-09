@@ -43,6 +43,9 @@ pub struct ManagerConfig {
     /// Key for encrypting cookies/credentials; `None` = keep them in memory only.
     pub secret_box: Option<SecretBox>,
     pub proxy_password: Option<String>,
+    /// Application SSH known-hosts file for SFTP (new hosts are recorded
+    /// there); `None` accepts only hosts in `~/.ssh/known_hosts`.
+    pub known_hosts: Option<PathBuf>,
 }
 
 struct Running {
@@ -55,6 +58,7 @@ struct Inner {
     secret_box: Option<SecretBox>,
     settings: RwLock<AppSettings>,
     proxy_password: RwLock<Option<String>>,
+    known_hosts: Option<PathBuf>,
     records: Mutex<HashMap<DownloadId, Arc<Mutex<DownloadRecord>>>>,
     /// Lock order: a record before `running` (`info_for` reads the live
     /// state of a locked record). `starting` keeps `start` atomic without
@@ -117,6 +121,15 @@ impl Inner {
 
     fn emit(&self, e: EngineEvent) {
         let _ = self.events.send(e);
+    }
+
+    fn remote_config(&self) -> velox_ftp::RemoteConfig {
+        let s = self.settings.read();
+        velox_ftp::RemoteConfig {
+            connect_timeout: Duration::from_secs(s.network.connect_timeout_secs as u64),
+            read_timeout: Duration::from_secs(s.network.read_timeout_secs as u64),
+            known_hosts: self.known_hosts.clone(),
+        }
     }
 
     fn client_options(&self) -> ClientOptions {
@@ -214,6 +227,32 @@ fn to_info(r: &DownloadRecord, live: Option<&LiveState>, has_secrets: bool) -> D
 }
 
 /// Classify a URL by scheme / path.
+/// Remove `user:password@` from an address, returning it as credentials.
+pub fn split_userinfo(url: &str) -> (String, Option<velox_types::Credentials>) {
+    let Ok(mut u) = velox_http::url::Url::parse(url) else {
+        return (url.to_string(), None);
+    };
+    if u.username().is_empty() && u.password().is_none() {
+        return (url.to_string(), None);
+    }
+    let decode = |s: &str| {
+        percent_encoding::percent_decode_str(s)
+            .decode_utf8_lossy()
+            .to_string()
+    };
+    let creds = velox_types::Credentials {
+        username: decode(u.username()),
+        password: u.password().map(decode).unwrap_or_default(),
+    };
+    let _ = u.set_username("");
+    let _ = u.set_password(None);
+    (u.to_string(), Some(creds))
+}
+
+fn redact_userinfo(url: &str) -> String {
+    split_userinfo(url).0
+}
+
 /// Delete a partial file, or the work directory of a media download.
 fn remove_temp(path: impl AsRef<Path>) {
     let p = path.as_ref();
@@ -243,7 +282,7 @@ pub fn detect_kind(url: &str) -> EngineResult<DownloadKind> {
                 Ok(DownloadKind::Http)
             }
         }
-        "ftp" | "ftps" => Ok(DownloadKind::Ftp),
+        "ftp" | "ftps" | "ftpes" => Ok(DownloadKind::Ftp),
         "sftp" => Ok(DownloadKind::Sftp),
         s => Err(EngineError::InvalidUrl(format!(
             "unsupported URL scheme \"{s}\""
@@ -268,6 +307,7 @@ impl DownloadManager {
             global_limiter: Arc::new(RateLimiter::new(settings.downloads.speed_limit)),
             settings: RwLock::new(settings),
             proxy_password: RwLock::new(cfg.proxy_password),
+            known_hosts: cfg.known_hosts,
             records: Mutex::new(HashMap::new()),
             running: Mutex::new(HashMap::new()),
             starting: Mutex::new(()),
@@ -484,13 +524,24 @@ impl DownloadManager {
             let name = headers::filename_from_url(&url).unwrap_or_else(|| "download".into());
             let name = naming::sanitize_file_name(&name);
             let category = Category::detect(&name, None);
+            let remote = if matches!(kind, DownloadKind::Ftp | DownloadKind::Sftp) {
+                let r = velox_ftp::Remote::new(
+                    &url,
+                    req.credentials.as_ref(),
+                    self.inner.remote_config(),
+                )?;
+                Some(r.stat().await?)
+            } else {
+                None
+            };
+            let url = redact_userinfo(&url);
             return Ok(UrlInfo {
                 duplicate_of: self.find_duplicates(&url).first().copied(),
                 url: url.clone(),
                 final_url: url,
                 file_name: name,
-                total_size: None,
-                resumable: kind == DownloadKind::Ftp || kind == DownloadKind::Sftp,
+                total_size: remote.as_ref().and_then(|r| r.size),
+                resumable: remote.as_ref().is_some_and(|r| r.resumable),
                 mime: None,
                 category,
                 kind,
@@ -544,8 +595,19 @@ impl DownloadManager {
     // ----- commands -------------------------------------------------------
 
     /// Create a download.
-    pub async fn add(&self, req: AddDownloadRequest) -> EngineResult<DownloadInfo> {
-        let url = req.url.trim().to_string();
+    pub async fn add(&self, mut req: AddDownloadRequest) -> EngineResult<DownloadInfo> {
+        // User info in the address ("ftp://user:pass@host/...") is a
+        // credential: keep it in the encrypted secrets, not in the URL.
+        let (url, embedded) = split_userinfo(req.url.trim());
+        if req
+            .credentials
+            .as_ref()
+            .is_none_or(|c| c.username.is_empty())
+        {
+            if let Some(c) = embedded {
+                req.credentials = Some(c);
+            }
+        }
         let mut kind = detect_kind(&url)?;
         if let Some(m) = &req.media {
             kind = match m.kind {
@@ -792,6 +854,7 @@ impl DownloadManager {
             secrets,
             reserved: self.inner.reserved.clone(),
             hooks: Arc::new(Hooks(Arc::downgrade(&self.inner))),
+            remote: self.inner.remote_config(),
         };
         let inner = self.inner.clone();
         let sh2 = shared.clone();

@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 /** Extract downloadable URLs from free text (one per line, or embedded). */
 export function extractUrls(text: string): string[] {
-  const re = /\b(?:https?|ftps?|sftp):\/\/[^\s"'<>]+/gi;
+  const re = /\b(?:https?|ftps?|ftpes|sftp):\/\/[^\s"'<>]+/gi;
   const out: string[] = [];
   const seen = new Set<string>();
   for (const m of text.matchAll(re)) {
@@ -42,5 +42,5 @@ export function expandPattern(url: string, limit = 2000): string[] {
 }
 
 export function isProbablyUrl(s: string): boolean {
-  return /^(?:https?|ftps?|sftp):\/\/\S+$/i.test(s.trim());
+  return /^(?:https?|ftps?|ftpes|sftp):\/\/\S+$/i.test(s.trim());
 }

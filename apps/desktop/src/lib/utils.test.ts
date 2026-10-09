@@ -36,3 +36,10 @@ describe("expandPattern", () => {
     expect(isProbablyUrl("e.com/a")).toBe(false);
   });
 });
+
+describe("ftp addresses", () => {
+  it("accepts ftp, ftps, ftpes and sftp", () => {
+    for (const u of ["ftp://h/f.iso", "ftps://h/f.iso", "ftpes://h/f.iso", "sftp://u@h/f.iso"]) expect(isProbablyUrl(u)).toBe(true);
+    expect(extractUrls("get ftpes://h/a.zip and sftp://h/b.zip")).toEqual(["ftpes://h/a.zip", "sftp://h/b.zip"]);
+  });
+});
