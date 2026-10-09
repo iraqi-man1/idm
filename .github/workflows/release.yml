@@ -1,14 +1,29 @@
 name: Release
 
-# Builds the installers from a version tag and attaches them to a draft
-# GitHub release. Updater artifacts are signed when the repository has the
-# TAURI_SIGNING_PRIVATE_KEY secret and the VELOX_UPDATER_PUBKEY variable
-# (see RELEASE_CHECKLIST.md).
+# Builds the installers.
+# * A pushed version tag (v*) builds them with tauri-action into a draft
+#   GitHub release (with signed updater artifacts when the repository has the
+#   TAURI_SIGNING_PRIVATE_KEY secret and the VELOX_UPDATER_PUBKEY variable).
+# * A manual run with "release_tag" (from the default branch) creates a draft
+#   release, attaches both installers and their SHA-256 sums, and publishes it
+#   (as a pre-release unless unticked) once every build succeeded.
+# * A manual run without "release_tag" only attaches the installers to the
+#   workflow run (e.g. for the clean-machine test).
+# See RELEASE_CHECKLIST.md.
 
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Publish a GitHub release with this tag (e.g. v0.1.0, must match the app version). Empty: build only."
+        required: false
+        default: ""
+      prerelease:
+        description: "Mark the release as a pre-release"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -20,7 +35,33 @@ env:
   APPIMAGE_EXTRACT_AND_RUN: 1
 
 jobs:
+  prepare:
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag
+        run: |
+          version=$(node -p "require('./apps/desktop/src-tauri/tauri.conf.json').version")
+          [ "$TAG" = "v$version" ] || { echo "::error::tag $TAG does not match the app version $version"; exit 1; }
+          [ "$GITHUB_REF" = "refs/heads/${{ github.event.repository.default_branch }}" ] \
+            || { echo "::error::releases are made from the default branch"; exit 1; }
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::release $TAG already exists"; exit 1
+          fi
+      - name: Create a draft release
+        run: |
+          sed "s/{{version}}/${TAG#v}/g" .github/release-notes.md > "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" \
+            --title "Velox Download Manager $TAG" --notes-file "$RUNNER_TEMP/notes.md"
+
   build:
+    needs: prepare
+    # Also runs when "prepare" was skipped (tag push, build-only run).
+    if: ${{ !failure() && !cancelled() }}
     strategy:
       fail-fast: false
       matrix:
@@ -65,10 +106,8 @@ jobs:
           else
             echo "::warning::updater signing is not configured; the release has no update artifacts"
           fi
-      # Manual runs (workflow_dispatch on a branch) build the same installers
-      # and attach them to the workflow run instead of creating a release,
-      # e.g. for the clean-machine test.
-      - name: Build installers (no release)
+      # Manual runs build with the Tauri CLI; tag pushes use tauri-action.
+      - name: Build installers (no tauri-action)
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         shell: bash
         env:
@@ -108,3 +147,36 @@ jobs:
             target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
             target/${{ matrix.target }}/release/bundle/SHA256SUMS.txt
           if-no-files-found: error
+      - name: Attach to the release
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          shopt -s nullglob
+          bundle=target/${{ matrix.target }}/release/bundle
+          mkdir -p release-assets
+          # GitHub turns spaces in asset names into dots; use dashes so the
+          # checksum file names the files people download.
+          for f in "$bundle"/nsis/*-setup.exe "$bundle"/appimage/*.AppImage; do
+            name=$(basename "$f")
+            cp "$f" "release-assets/${name// /-}"
+          done
+          cd release-assets
+          files=(*)
+          [ ${#files[@]} -gt 0 ] || { echo "::error::no installer found"; exit 1; }
+          sums="SHA256SUMS-${{ matrix.target }}.txt"
+          sha256sum "${files[@]}" | sed 's/ \*/  /' | tee "$sums"
+          gh release upload "$TAG" "${files[@]}" "$sums" --clobber --repo "$GITHUB_REPOSITORY"
+
+  publish:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.release_tag }}
+    steps:
+      - name: Publish the release
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=${{ inputs.prerelease }}

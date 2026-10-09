@@ -50,7 +50,15 @@ refuses to bundle a file whose hash differs.
 - [ ] Release candidate built with a manual `Release` run (Actions → Release →
   Run workflow; installers attached to the run, no release created) and used
   for the clean-machine gate below
-- [ ] Tag `vX.Y.Z` pushed; the `Release` workflow built:
+- [ ] Release published, either way:
+  * push the tag `vX.Y.Z` (tauri-action builds into a draft release, with
+    the update artifacts), or
+  * run `Release` from the default branch with **release_tag** `vX.Y.Z`: it
+    creates the release from `.github/release-notes.md`, attaches the
+    installers and `SHA256SUMS-*.txt`, and publishes it (pre-release unless
+    unticked) only after every build passed.
+
+  The `Release` workflow built:
   - [ ] Windows x64 NSIS installer (sidecars verified, WebView2 offline installer embedded)
   - [ ] Linux x64 AppImage
 - [ ] Update artifacts signed and `latest.json` attached (when the key is configured)
