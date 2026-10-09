@@ -38,3 +38,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 *.log
+
+# Python bytecode (E2E scripts)
+__pycache__/
